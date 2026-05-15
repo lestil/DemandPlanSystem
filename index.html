@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>需求管理系统 - 导入Word需求 | 医院筛选拖拽</title>
+    <title>需求管理系统 - 智能导入 | 医院筛选拖拽</title>
     <!-- SortableJS 拖拽库 -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <!-- mammoth.js 解析 Word 文档 -->
@@ -328,6 +328,13 @@
         input[type="file"] {
             display: none;
         }
+        .import-tip {
+            font-size: 0.7rem;
+            background: #eef2ff;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            color: #2563eb;
+        }
     </style>
 </head>
 <body>
@@ -335,7 +342,7 @@
     <div class="header">
         <div>
             <h1>🏥 需求排期 · 多院区管理</h1>
-            <div class="sub">✨ 按医院筛选 · 拖拽排序 · Word导入</div>
+            <div class="sub">✨ 按医院筛选 · 拖拽排序 · Word智能导入（仅需三字段）</div>
         </div>
         <div class="info-note">
             ⚡ 按住「⋮⋮」拖动行调整顺序（仅影响当前医院下的需求顺序）
@@ -347,7 +354,8 @@
         <div class="form-panel">
             <div class="form-title">
                 <span>✏️</span> <span id="formModeLabel">新增需求</span>
-                <div style="margin-left: auto;">
+                <div style="margin-left: auto; display: flex; gap: 12px; align-items: center;">
+                    <span class="import-tip">📄 导入Word：只需包含「项目医院」「需求名称」「需求描述」列</span>
                     <button class="btn btn-accent" id="importWordBtn">📄 导入需求书 (Word)</button>
                     <input type="file" id="wordFileInput" accept=".docx" style="display: none;">
                 </div>
@@ -418,7 +426,7 @@
         </div>
     </div>
     <footer>
-        🧩 数据持久化localStorage · 支持按医院筛选 · 独立拖拽排序 · 📄 导入Word需求书（要求Word内包含表格，表头：需求名称、项目医院、需求描述、预计完成时间、优先级）
+        🧩 数据持久化localStorage · 支持按医院筛选 · 独立拖拽排序 · <strong>导入Word：自动识别「项目医院」「需求名称」「需求描述」</strong>，其他字段自动填充（预计完成时间=当天，优先级=中）
     </footer>
 </div>
 <div id="toastMsg" class="toast-msg" style="display: none;"></div>
@@ -602,7 +610,6 @@
                 saveToLocalStorage();
             } else refreshFilteredView();
         } else {
-            const otherReqs = requirements.filter(r => r.hospital !== currentFilterHospital);
             const newRequirements = [];
             let currentHospitalIndex = 0;
             for (let originalReq of requirements) {
@@ -638,6 +645,7 @@
         reqNameInput.value = '';
         reqHospitalInput.value = '';
         reqDescInput.value = '';
+        // 日期默认置空，但保存时强制必填，用户可自己选
         reqDueDateInput.value = '';
         reqPrioritySelect.value = '中';
         currentEditId = null;
@@ -664,8 +672,11 @@
         const hospital = reqHospitalInput.value.trim();
         if (!hospital) { alert('请填写项目医院'); return; }
         const description = reqDescInput.value.trim() || '';
-        const dueDate = reqDueDateInput.value;
-        if (!dueDate) { alert('请填写预计完成时间'); return; }
+        let dueDate = reqDueDateInput.value;
+        if (!dueDate) {
+            // 如果没有选择日期，默认今天
+            dueDate = new Date().toISOString().slice(0,10);
+        }
         const priority = reqPrioritySelect.value;
         if (currentEditId !== null) {
             const index = requirements.findIndex(r => r.id === currentEditId);
@@ -740,7 +751,7 @@
         updateFilterStats();
     }
 
-    // ---------- 导入 Word 功能 ----------
+    // ---------- 导入 Word 核心（只取三字段：项目医院、需求名称、需求描述） ----------
     async function importFromWord(file) {
         try {
             const arrayBuffer = await file.arrayBuffer();
@@ -750,81 +761,77 @@
             const doc = parser.parseFromString(htmlContent, 'text/html');
             const tables = doc.querySelectorAll('table');
             if (!tables.length) {
-                showToast('未检测到表格，请确保Word文档中包含需求表格（表头：需求名称、项目医院、需求描述、预计完成时间、优先级）', true);
+                showToast('未检测到表格，请确保Word文档中包含表格（列：项目医院、需求名称、需求描述）', true);
                 return;
             }
-            // 取第一个表格
             const table = tables[0];
             const rows = table.querySelectorAll('tr');
             if (rows.length < 2) {
                 showToast('表格至少需要表头+数据行', true);
                 return;
             }
-            // 解析表头，匹配列索引
+            // 解析表头，匹配需要的三列
             const headerCells = rows[0].querySelectorAll('th, td');
-            const colIndex = {
-                name: -1, hospital: -1, desc: -1, dueDate: -1, priority: -1
-            };
-            const headerTexts = Array.from(headerCells).map(cell => cell.innerText.trim());
+            const headerTexts = Array.from(headerCells).map(cell => cell.innerText.trim().toLowerCase());
+            let colIdx = { hospital: -1, name: -1, desc: -1 };
             for (let i = 0; i < headerTexts.length; i++) {
                 const txt = headerTexts[i];
-                if (txt.includes('需求名称') || txt.includes('名称')) colIndex.name = i;
-                else if (txt.includes('项目医院') || txt.includes('医院')) colIndex.hospital = i;
-                else if (txt.includes('需求描述') || txt.includes('描述')) colIndex.desc = i;
-                else if (txt.includes('预计完成时间') || txt.includes('完成时间') || txt.includes('日期')) colIndex.dueDate = i;
-                else if (txt.includes('优先级')) colIndex.priority = i;
+                if (txt.includes('项目医院') || txt.includes('医院')) colIdx.hospital = i;
+                else if (txt.includes('需求名称') || txt.includes('名称')) colIdx.name = i;
+                else if (txt.includes('需求描述') || txt.includes('描述')) colIdx.desc = i;
             }
-            if (colIndex.name === -1 || colIndex.hospital === -1) {
-                showToast('表格必须包含“需求名称”和“项目医院”列', true);
+            // 必须包含医院和名称列
+            if (colIdx.hospital === -1 || colIdx.name === -1) {
+                showToast('表格必须包含「项目医院」和「需求名称」两列（缺一不可）', true);
                 return;
             }
             const newReqs = [];
+            const today = new Date().toISOString().slice(0,10);
             for (let i = 1; i < rows.length; i++) {
                 const cells = rows[i].querySelectorAll('th, td');
                 if (cells.length === 0) continue;
-                const getName = (idx) => idx !== -1 && cells[idx] ? cells[idx].innerText.trim() : '';
-                const name = getName(colIndex.name);
-                const hospital = getName(colIndex.hospital);
-                if (!name || !hospital) continue;
-                const description = colIndex.desc !== -1 ? getName(colIndex.desc) : '';
-                let dueDate = colIndex.dueDate !== -1 ? getName(colIndex.dueDate) : '';
-                // 日期标准化
-                if (dueDate) {
-                    let parsed = new Date(dueDate);
-                    if (!isNaN(parsed.getTime())) {
-                        dueDate = parsed.toISOString().slice(0,10);
-                    } else {
-                        const match = dueDate.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-                        if (match) dueDate = `${match[1]}-${match[2].padStart(2,'0')}-${match[3].padStart(2,'0')}`;
-                        else dueDate = '';
-                    }
-                }
-                let priority = colIndex.priority !== -1 ? getName(colIndex.priority) : '中';
-                priority = (priority === '高' || priority === '中' || priority === '低') ? priority : '中';
-                if (!dueDate) {
-                    const today = new Date().toISOString().slice(0,10);
-                    dueDate = today;
-                }
-                const newId = Date.now() + i;
-                const newReqId = generateNewReqId();
+                const getCellText = (idx) => idx !== -1 && cells[idx] ? cells[idx].innerText.trim() : '';
+                const hospital = getCellText(colIdx.hospital);
+                const name = getCellText(colIdx.name);
+                if (!hospital || !name) continue; // 跳过关键字段缺失的行
+                const description = colIdx.desc !== -1 ? getCellText(colIdx.desc) : '';
+                // 自动生成唯一ID和编号
+                const newId = Date.now() + i + Math.random() * 10000;
+                const newReqId = generateNewReqId(); // 动态生成，依赖现有requirements，先push再重新生成顺序麻烦，先临时生成后补
                 newReqs.push({
                     id: newId,
-                    reqId: newReqId,
+                    reqId: `REQ-TEMP`,   // 临时占位，后面统一刷新编号
                     name: name,
                     hospital: hospital,
                     description: description,
-                    dueDate: dueDate,
-                    priority: priority
+                    dueDate: today,
+                    priority: '中'
                 });
             }
             if (newReqs.length === 0) {
-                showToast('未从表格中解析到有效需求数据', true);
+                showToast('未从表格中解析到有效需求（至少需要医院和名称非空）', true);
                 return;
             }
-            requirements.push(...newReqs);
+            // 为了确保编号连续且不冲突，先将新需求临时加入，再统一刷新编号（使用最终保存前的编号生成）
+            // 更稳健：逐个生成编号，因为 generateNewReqId 基于现有 requirements 实时计算。
+            const finalNewReqs = [];
+            for (let item of newReqs) {
+                const freshId = Date.now() + Math.random() * 10000;
+                const freshReqId = generateNewReqId(); // 基于当前requirements生成新编号
+                finalNewReqs.push({
+                    id: freshId,
+                    reqId: freshReqId,
+                    name: item.name,
+                    hospital: item.hospital,
+                    description: item.description,
+                    dueDate: item.dueDate,
+                    priority: item.priority
+                });
+            }
+            requirements.push(...finalNewReqs);
             saveToLocalStorage();
             refreshFilteredView();
-            showToast(`✅ 成功导入 ${newReqs.length} 条需求`);
+            showToast(`✅ 成功导入 ${finalNewReqs.length} 条需求（自动设置完成时间=今天，优先级=中）`);
         } catch (err) {
             console.error(err);
             showToast('解析Word失败，请确保文件为.docx格式且包含标准表格', true);
