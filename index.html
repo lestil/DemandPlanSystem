@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>需求管理系统 - 智能导入 | 医院筛选拖拽</title>
+    <title>需求管理系统 - 稳定弹窗版 | 批量删除 | Jira跳转</title>
     <!-- SortableJS 拖拽库 -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-    <!-- mammoth.js 解析 Word 文档 -->
+    <!-- mammoth.js 解析 Word -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
     <style>
         * {
@@ -42,7 +42,6 @@
             background-clip: text;
             -webkit-background-clip: text;
             color: transparent;
-            letter-spacing: -0.3px;
         }
         .sub {
             color: #475569;
@@ -51,105 +50,12 @@
             padding: 0.25rem 0.8rem;
             border-radius: 30px;
         }
-
         .card {
             background: white;
             border-radius: 20px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.05);
             overflow: hidden;
             margin-bottom: 2rem;
-            transition: box-shadow 0.2s;
-        }
-        .card:hover {
-            box-shadow: 0 12px 28px rgba(0,0,0,0.08);
-        }
-
-        .form-panel {
-            padding: 1.5rem 2rem;
-            background: #ffffff;
-            border-bottom: 1px solid #e9eef3;
-        }
-        .form-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 1.2rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: #0f172a;
-        }
-        .form-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            align-items: flex-end;
-        }
-        .field-group {
-            flex: 1;
-            min-width: 150px;
-        }
-        .field-group label {
-            display: block;
-            font-size: 0.8rem;
-            font-weight: 500;
-            color: #334155;
-            margin-bottom: 0.3rem;
-        }
-        .field-group input, .field-group select, .field-group textarea {
-            width: 100%;
-            padding: 0.6rem 0.8rem;
-            border: 1px solid #cbd5e1;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            background: #fafcff;
-            transition: 0.2s;
-            font-family: inherit;
-        }
-        .field-group input:focus, .field-group select:focus, .field-group textarea:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
-        }
-        .field-group textarea {
-            resize: vertical;
-            min-height: 70px;
-        }
-        .btn {
-            border: none;
-            background: #eef2ff;
-            padding: 0.6rem 1.2rem;
-            border-radius: 40px;
-            font-weight: 500;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: inherit;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-        .btn-primary {
-            background: #2563eb;
-            color: white;
-            box-shadow: 0 2px 5px rgba(37,99,235,0.2);
-        }
-        .btn-primary:hover {
-            background: #1d4ed8;
-            transform: translateY(-1px);
-        }
-        .btn-secondary {
-            background: #f1f5f9;
-            color: #1e293b;
-        }
-        .btn-secondary:hover {
-            background: #e2e8f0;
-        }
-        .btn-accent {
-            background: #10b981;
-            color: white;
-        }
-        .btn-accent:hover {
-            background: #059669;
         }
         .filter-bar {
             padding: 0.8rem 2rem;
@@ -160,706 +66,774 @@
             gap: 1.5rem;
             flex-wrap: wrap;
         }
-        .filter-label {
-            font-weight: 600;
-            font-size: 0.9rem;
+        .toolbar {
+            padding: 0.8rem 2rem;
+            background: white;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #eef2f6;
+        }
+        .btn {
+            border: none;
+            padding: 0.5rem 1.2rem;
+            border-radius: 40px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+        .btn-danger {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+        .btn-danger:hover {
+            background: #fecaca;
+        }
+        .btn-accent {
+            background: #10b981;
+            color: white;
+        }
+        .btn-secondary {
+            background: #f1f5f9;
             color: #1e293b;
         }
         .hospital-select {
-            padding: 0.5rem 1.8rem 0.5rem 1rem;
+            padding: 0.4rem 1rem;
             border-radius: 40px;
             border: 1px solid #cbd5e1;
             background: white;
-            font-size: 0.85rem;
-            font-weight: 500;
-            cursor: pointer;
-            outline: none;
         }
         .filter-stats {
             font-size: 0.75rem;
-            color: #4b5563;
             background: #eef2ff;
             padding: 0.2rem 0.7rem;
             border-radius: 30px;
         }
         .table-wrapper {
             overflow-x: auto;
-            padding: 0 0 0.5rem 0;
         }
         .req-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.85rem;
-            min-width: 1000px;
+            min-width: 1100px;
         }
         .req-table th {
             text-align: left;
             padding: 1rem 0.8rem;
-            background-color: #f8fafc;
-            color: #334155;
-            font-weight: 600;
+            background: #f8fafc;
             border-bottom: 1px solid #e2e8f0;
         }
         .req-table td {
             padding: 0.9rem 0.8rem;
             border-bottom: 1px solid #f0f2f7;
             vertical-align: middle;
-            background-color: white;
-        }
-        .req-table tr {
-            cursor: default;
-            transition: background 0.1s;
-        }
-        .req-table tr:hover td {
-            background-color: #fefce8;
+            background: white;
         }
         .drag-handle {
             cursor: grab;
             font-size: 1.3rem;
-            user-select: none;
             color: #94a3b8;
             text-align: center;
             width: 32px;
-            transition: color 0.2s;
-        }
-        .drag-handle:active {
-            cursor: grabbing;
-        }
-        .req-table tr:hover .drag-handle {
-            color: #3b82f6;
+            user-select: none;
         }
         .priority-badge {
             display: inline-block;
             padding: 0.2rem 0.7rem;
             border-radius: 40px;
             font-size: 0.75rem;
-            font-weight: 500;
-            text-align: center;
         }
-        .priority-high {
-            background: #fee2e2;
-            color: #b91c1c;
+        .priority-high { background: #fee2e2; color: #b91c1c; }
+        .priority-medium { background: #fff3e3; color: #b45309; }
+        .priority-low { background: #e0f2fe; color: #0369a1; }
+        .hospital-badge { background: #eef2ff; padding: 0.2rem 0.5rem; border-radius: 20px; font-size: 0.7rem; color: #1e40af; }
+        .jira-link { color: #2563eb; text-decoration: none; font-weight: 500; border-bottom: 1px dashed #94a3b8; cursor: pointer; }
+        .edit-icon, .delete-icon { cursor: pointer; border: none; padding: 0.3rem 0.6rem; border-radius: 30px; font-size: 0.7rem; margin:0 2px; }
+        .edit-icon { background: #e6f0ff; color: #1e40af; }
+        .delete-icon { background: #ffe4e4; color: #b91c1c; }
+        .toast-msg { position: fixed; bottom: 20px; right: 20px; background: #1f2937; color: white; padding: 0.8rem 1.2rem; border-radius: 40px; z-index: 1100; display: none; }
+        .empty-row td { text-align: center; padding: 3rem; color: #94a3b8; }
+        footer { text-align: center; margin-top: 2rem; color: #6c86a3; font-size: 0.75rem; }
+
+        /* 弹窗样式：使用 display + active 控制，最稳定 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
         }
-        .priority-medium {
-            background: #fff3e3;
-            color: #b45309;
-        }
-        .priority-low {
-            background: #e0f2fe;
-            color: #0369a1;
-        }
-        .action-buttons {
+        .modal-overlay.active {
             display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
         }
-        .edit-icon, .delete-icon {
-            cursor: pointer;
+        .modal-container {
+            background: white;
+            width: 90%;
+            max-width: 700px;
+            border-radius: 28px;
+            box-shadow: 0 25px 40px rgba(0,0,0,0.2);
+            padding: 1.8rem 2rem;
+            position: relative;
+            transform: scale(0.96);
+            transition: transform 0.2s ease;
+        }
+        .modal-overlay.active .modal-container {
+            transform: scale(1);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+        .modal-close {
             background: none;
             border: none;
-            padding: 0.3rem 0.6rem;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            font-weight: 500;
-            transition: 0.1s;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: #64748b;
         }
-        .edit-icon {
-            background: #e6f0ff;
-            color: #1e40af;
-        }
-        .delete-icon {
-            background: #ffe4e4;
-            color: #b91c1c;
-        }
-        .edit-icon:hover {
-            background: #bed6ff;
-        }
-        .delete-icon:hover {
-            background: #ffc9c9;
-        }
-        .empty-row td {
-            text-align: center;
-            padding: 3rem;
-            color: #94a3b8;
-            font-style: italic;
-        }
-        .info-note {
-            font-size: 0.7rem;
-            padding: 0.5rem 1rem 1rem 1rem;
-            color: #62748c;
+        .modal-form .form-grid {
             display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
         }
-        footer {
-            text-align: center;
-            margin-top: 2rem;
-            color: #6c86a3;
+        .modal-form .field-group {
+            flex: 1;
+            min-width: 160px;
+        }
+        .modal-form label {
             font-size: 0.75rem;
-        }
-        .flex-btns {
-            display: flex;
-            gap: 0.8rem;
-            align-items: center;
-        }
-        .hospital-badge {
-            background: #eef2ff;
-            padding: 0.2rem 0.5rem;
-            border-radius: 20px;
-            font-size: 0.7rem;
             font-weight: 500;
-            color: #1e40af;
-            display: inline-block;
+            color: #334155;
+            display: block;
+            margin-bottom: 0.2rem;
         }
-        .toast-msg {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #1f2937;
-            color: white;
-            padding: 0.8rem 1.2rem;
-            border-radius: 40px;
+        .modal-form input, .modal-form select, .modal-form textarea {
+            width: 100%;
+            padding: 0.5rem 0.7rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
             font-size: 0.85rem;
-            z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            transition: 0.2s;
-            pointer-events: none;
         }
-        input[type="file"] {
-            display: none;
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.8rem;
+            margin-top: 1.5rem;
         }
-        .import-tip {
-            font-size: 0.7rem;
-            background: #eef2ff;
-            padding: 0.2rem 0.6rem;
-            border-radius: 20px;
-            color: #2563eb;
+        .checkbox-col {
+            width: 32px;
+            text-align: center;
+        }
+        .select-all-checkbox {
+            transform: scale(1.1);
+            cursor: pointer;
+        }
+        .jira-settings-modal .modal-container {
+            max-width: 480px;
+        }
+        .jira-url-input {
+            width: 100%;
+            padding: 0.6rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 16px;
+            font-size: 0.9rem;
         }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <div>
-            <h1>🏥 需求排期 · 多院区管理</h1>
-            <div class="sub">✨ 按医院筛选 · 拖拽排序 · Word智能导入（仅需三字段）</div>
-        </div>
-        <div class="info-note">
-            ⚡ 按住「⋮⋮」拖动行调整顺序（仅影响当前医院下的需求顺序）
-        </div>
+        <div><h1>🏥 需求排期 · Jira集成</h1><div class="sub">✨ 弹窗表单 · 批量删除 · 拖拽排序</div></div>
+        <div class="info-note">⚡ 按住「⋮⋮」拖动行调整顺序</div>
     </div>
 
-    <!-- 新增/编辑表单卡片 + 导入按钮 -->
-    <div class="card">
-        <div class="form-panel">
-            <div class="form-title">
-                <span>✏️</span> <span id="formModeLabel">新增需求</span>
-                <div style="margin-left: auto; display: flex; gap: 12px; align-items: center;">
-                    <span class="import-tip">📄 导入Word：只需包含「项目医院」「需求名称」「需求描述」列</span>
-                    <button class="btn btn-accent" id="importWordBtn">📄 导入需求书 (Word)</button>
-                    <input type="file" id="wordFileInput" accept=".docx" style="display: none;">
-                </div>
-            </div>
-            <div class="form-grid">
-                <div class="field-group" style="min-width: 170px;">
-                    <label>需求名称 *</label>
-                    <input type="text" id="reqName" placeholder="例: 门诊挂号系统升级" autocomplete="off">
-                </div>
-                <div class="field-group" style="min-width: 170px;">
-                    <label>项目医院 *</label>
-                    <input type="text" id="reqHospital" placeholder="例: 市第一人民医院" autocomplete="off" list="hospitalDatalist">
-                    <datalist id="hospitalDatalist"></datalist>
-                </div>
-                <div class="field-group" style="min-width: 200px;">
-                    <label>需求描述</label>
-                    <textarea id="reqDesc" rows="1" placeholder="简要描述功能点..."></textarea>
-                </div>
-                <div class="field-group">
-                    <label>预计完成时间</label>
-                    <input type="date" id="reqDueDate">
-                </div>
-                <div class="field-group">
-                    <label>优先级</label>
-                    <select id="reqPriority">
-                        <option value="高">🔴 高</option>
-                        <option value="中" selected>🟠 中</option>
-                        <option value="低">🟢 低</option>
-                    </select>
-                </div>
-                <div class="field-group flex-btns" style="flex: 0 0 auto; gap: 8px;">
-                    <button class="btn btn-primary" id="saveReqBtn">➕ 保存需求</button>
-                    <button class="btn btn-secondary" id="cancelEditBtn" style="display: none;">取消编辑</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 筛选栏 -->
     <div class="card">
         <div class="filter-bar">
-            <span class="filter-label">🏥 按医院筛选：</span>
-            <select id="hospitalFilterSelect" class="hospital-select">
-                <option value="__ALL__">🏥 全部医院</option>
-            </select>
-            <span class="filter-stats" id="filterStats">显示全部需求</span>
+            <span>🏥 按医院筛选：</span>
+            <select id="hospitalFilterSelect" class="hospital-select"><option value="__ALL__">全部医院</option></select>
+            <span class="filter-stats" id="filterStats"></span>
             <div style="flex:1"></div>
-            <span class="info-note" style="padding:0; background:transparent;">💡 拖拽仅影响当前筛选医院内部的排序</span>
+            <button type="button" class="btn btn-secondary" id="openJiraSettingsBtn">⚙️ Jira地址设置</button>
+        </div>
+        <div class="toolbar">
+            <button type="button" class="btn btn-primary" id="openAddModalBtn">➕ 新增需求</button>
+            <button type="button" class="btn btn-danger" id="batchDeleteBtn" style="display: none;">🗑️ 批量删除</button>
+            <button type="button" class="btn btn-accent" id="importWordBtn">📄 导入Word需求书</button>
+            <input type="file" id="wordFileInput" accept=".docx" style="display:none;">
+            <span class="filter-stats">💡 编号框粘贴完整Jira地址自动提取编号</span>
         </div>
         <div class="table-wrapper">
-            <table class="req-table" id="reqTable">
+            <table class="req-table">
                 <thead>
-                <tr>
-                    <th style="width: 44px;">排序</th>
-                    <th>需求编号</th>
-                    <th>需求名称</th>
-                    <th>项目医院</th>
-                    <th>需求描述</th>
-                    <th>预计完成时间</th>
-                    <th>优先级</th>
-                    <th style="width: 120px;">操作</th>
-                </tr>
+                    <tr>
+                        <th class="checkbox-col"><input type="checkbox" id="selectAllCheckbox" class="select-all-checkbox"></th>
+                        <th style="width:44px;">排序</th>
+                        <th>Jira编号 (点击跳转)</th>
+                        <th>需求名称</th>
+                        <th>项目医院</th>
+                        <th>需求描述</th>
+                        <th>预计完成时间</th>
+                        <th>优先级</th>
+                        <th style="width:120px;">操作</th>
+                    </tr>
                 </thead>
                 <tbody id="reqTableBody">
-                    <tr class="empty-row"><td colspan="8">加载中...</td></tr>
+                    <tr class="empty-row"><td colspan="9">加载中...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
-    <footer>
-        🧩 数据持久化localStorage · 支持按医院筛选 · 独立拖拽排序 · <strong>导入Word：自动识别「项目医院」「需求名称」「需求描述」</strong>，其他字段自动填充（预计完成时间=当天，优先级=中）
-    </footer>
+    <footer>🧩 数据持久化localStorage · 支持医院筛选 · 拖拽排序 · Word导入自动识别三字段 · 批量删除</footer>
 </div>
-<div id="toastMsg" class="toast-msg" style="display: none;"></div>
+
+<!-- 新增/编辑需求弹窗 -->
+<div id="reqModal" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <span id="modalTitle">新增需求</span>
+            <button type="button" class="modal-close" id="closeModalBtn">&times;</button>
+        </div>
+        <div class="modal-form">
+            <div class="form-grid">
+                <div class="field-group" style="flex:2;">
+                    <label>Jira 编号 / 完整URL *</label>
+                    <input type="text" id="modalJiraKey" placeholder="例如: ZSRY-178 或 https://j.dingxiangsoft.com:8060/browse/ZSRY-178">
+                </div>
+                <div class="field-group">
+                    <label>需求名称 *</label>
+                    <input type="text" id="modalName" placeholder="需求名称">
+                </div>
+            </div>
+            <div class="form-grid">
+                <div class="field-group">
+                    <label>项目医院 *</label>
+                    <input type="text" id="modalHospital" list="modalHospitalDatalist">
+                    <datalist id="modalHospitalDatalist"></datalist>
+                </div>
+                <div class="field-group">
+                    <label>预计完成时间</label>
+                    <input type="date" id="modalDueDate">
+                </div>
+                <div class="field-group">
+                    <label>优先级</label>
+                    <select id="modalPriority">
+                        <option value="高">高</option>
+                        <option value="中" selected>中</option>
+                        <option value="低">低</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-grid">
+                <div class="field-group" style="flex:1;">
+                    <label>需求描述</label>
+                    <textarea id="modalDesc" rows="3" placeholder="详细描述..."></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="modalCancelBtn">取消</button>
+            <button type="button" class="btn btn-primary" id="modalSaveBtn">保存需求</button>
+        </div>
+    </div>
+</div>
+
+<!-- Jira基础地址设置弹窗 -->
+<div id="jiraSettingsModal" class="modal-overlay jira-settings-modal">
+    <div class="modal-container">
+        <div class="modal-header">
+            <span>🔗 Jira 基础地址设置</span>
+            <button type="button" class="modal-close" id="closeJiraSettingsBtn">&times;</button>
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <label style="font-size: 0.8rem; color: #334155;">基础URL (例如: https://your-domain.atlassian.net/browse/)</label>
+            <input type="text" id="jiraBaseUrlInput" class="jira-url-input" placeholder="https://jira.atlassian.net/browse/">
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancelJiraSettingsBtn">取消</button>
+            <button type="button" class="btn btn-primary" id="saveJiraSettingsBtn">保存</button>
+        </div>
+    </div>
+</div>
+
+<div id="toastMsg" class="toast-msg"></div>
 
 <script>
-    // ---------- 全局变量 ----------
-    let requirements = [];          // 全局需求数组
-    let currentEditId = null;      
-    let currentFilterHospital = "__ALL__";  
-    let sortableInstance = null;    
+    (function() {
+        // ---------- 全局数据 ----------
+        let requirements = [];
+        let currentEditId = null;          // null:新增模式
+        let currentFilterHospital = "__ALL__";
+        let sortableInstance = null;
+        let jiraBaseUrl = "https://jira.atlassian.net/browse/";
 
-    // DOM 元素
-    const reqNameInput = document.getElementById('reqName');
-    const reqHospitalInput = document.getElementById('reqHospital');
-    const reqDescInput = document.getElementById('reqDesc');
-    const reqDueDateInput = document.getElementById('reqDueDate');
-    const reqPrioritySelect = document.getElementById('reqPriority');
-    const saveBtn = document.getElementById('saveReqBtn');
-    const cancelEditBtn = document.getElementById('cancelEditBtn');
-    const formModeLabel = document.getElementById('formModeLabel');
-    const tableBody = document.getElementById('reqTableBody');
-    const hospitalFilterSelect = document.getElementById('hospitalFilterSelect');
-    const filterStatsSpan = document.getElementById('filterStats');
-    const hospitalDatalist = document.getElementById('hospitalDatalist');
-    const importWordBtn = document.getElementById('importWordBtn');
-    const wordFileInput = document.getElementById('wordFileInput');
-    const toastMsgDiv = document.getElementById('toastMsg');
+        // ---------- DOM 元素 ----------
+        const hospitalFilter = document.getElementById('hospitalFilterSelect');
+        const filterStats = document.getElementById('filterStats');
+        const tableBody = document.getElementById('reqTableBody');
+        const openAddModalBtn = document.getElementById('openAddModalBtn');
+        const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+        const importWordBtn = document.getElementById('importWordBtn');
+        const wordFileInput = document.getElementById('wordFileInput');
+        const selectAllChk = document.getElementById('selectAllCheckbox');
+        const toast = document.getElementById('toastMsg');
+        const openJiraSettingsBtn = document.getElementById('openJiraSettingsBtn');
 
-    function showToast(msg, isError = false) {
-        toastMsgDiv.innerText = msg;
-        toastMsgDiv.style.display = 'block';
-        toastMsgDiv.style.background = isError ? '#b91c1c' : '#1f2937';
-        setTimeout(() => {
-            toastMsgDiv.style.display = 'none';
-        }, 3000);
-    }
+        // 需求弹窗元素
+        const reqModal = document.getElementById('reqModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalJiraKey = document.getElementById('modalJiraKey');
+        const modalName = document.getElementById('modalName');
+        const modalHospital = document.getElementById('modalHospital');
+        const modalHospitalDatalist = document.getElementById('modalHospitalDatalist');
+        const modalDueDate = document.getElementById('modalDueDate');
+        const modalPriority = document.getElementById('modalPriority');
+        const modalDesc = document.getElementById('modalDesc');
+        const modalSaveBtn = document.getElementById('modalSaveBtn');
+        const modalCancelBtn = document.getElementById('modalCancelBtn');
+        const closeModalBtn = document.getElementById('closeModalBtn');
 
-    // ---------- 辅助函数 ----------
-    function generateNewReqId() {
-        if (!requirements.length) return 'REQ-0001';
-        let maxNum = 0;
-        for (let req of requirements) {
-            const match = req.reqId.match(/REQ-0*(\d+)/);
-            if (match && match[1]) {
-                const num = parseInt(match[1], 10);
-                if (!isNaN(num) && num > maxNum) maxNum = num;
+        // Jira设置弹窗
+        const jiraSettingsModal = document.getElementById('jiraSettingsModal');
+        const jiraBaseUrlInput = document.getElementById('jiraBaseUrlInput');
+        const saveJiraSettingsBtn = document.getElementById('saveJiraSettingsBtn');
+        const cancelJiraSettingsBtn = document.getElementById('cancelJiraSettingsBtn');
+        const closeJiraSettingsBtn = document.getElementById('closeJiraSettingsBtn');
+
+        // ---------- 辅助函数 ----------
+        function showToast(msg, isErr) {
+            toast.innerText = msg;
+            toast.style.display = 'block';
+            toast.style.background = isErr ? '#b91c1c' : '#1f2937';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('requirementsSystem', JSON.stringify(requirements));
+            updateFilterOptions();
+            refreshView();
+        }
+
+        function getAllHospitals() {
+            return [...new Set(requirements.map(r => r.hospital).filter(h => h && h.trim()))].sort();
+        }
+
+        function updateFilterOptions() {
+            let hospitals = getAllHospitals();
+            let html = '<option value="__ALL__">全部医院</option>';
+            for (let h of hospitals) html += `<option value="${escapeAttr(h)}">${escapeHtml(h)}</option>`;
+            hospitalFilter.innerHTML = html;
+            hospitalFilter.value = currentFilterHospital;
+            let datalistHtml = '';
+            for (let h of hospitals) datalistHtml += `<option value="${escapeAttr(h)}">`;
+            modalHospitalDatalist.innerHTML = datalistHtml;
+            updateStats();
+        }
+
+        function updateStats() {
+            let total = requirements.length, filtered = getFiltered().length;
+            filterStats.innerText = currentFilterHospital === '__ALL__' ? `共 ${total} 个需求` : `「${currentFilterHospital}」下 ${filtered} 个 / 总计 ${total}`;
+        }
+
+        function getFiltered() {
+            return currentFilterHospital === '__ALL__' ? [...requirements] : requirements.filter(r => r.hospital === currentFilterHospital);
+        }
+
+        // 智能提取编号和基础URL
+        function smartExtractJira(inputStr) {
+            let trimmed = inputStr.trim();
+            if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+                try {
+                    let url = new URL(trimmed);
+                    let path = url.pathname;
+                    let lastSlash = path.lastIndexOf('/');
+                    let key = lastSlash !== -1 ? path.substring(lastSlash + 1) : path;
+                    if (key.includes('?')) key = key.split('?')[0];
+                    if (key.includes('#')) key = key.split('#')[0];
+                    let baseUrl = trimmed.substring(0, trimmed.lastIndexOf(key));
+                    return { key: key, base: baseUrl };
+                } catch(e) { return { key: trimmed, base: null }; }
+            }
+            return { key: trimmed, base: null };
+        }
+
+        function openJira(key) {
+            if (!key) return;
+            let base = jiraBaseUrl.endsWith('/') ? jiraBaseUrl : jiraBaseUrl + '/';
+            window.open(base + encodeURIComponent(key), '_blank');
+        }
+
+        // 批量删除相关
+        function updateBatchDeleteButton() {
+            let checked = document.querySelectorAll('.row-checkbox:checked').length;
+            batchDeleteBtn.style.display = checked > 0 ? 'inline-flex' : 'none';
+            batchDeleteBtn.innerText = `🗑️ 批量删除 (${checked})`;
+        }
+
+        function updateSelectAllCheckbox() {
+            let checkboxes = document.querySelectorAll('.row-checkbox');
+            if (checkboxes.length === 0) { selectAllChk.checked = false; return; }
+            let allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            selectAllChk.checked = allChecked;
+        }
+
+        function getSelectedIds() {
+            return Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.getAttribute('data-id')));
+        }
+
+        function batchDelete() {
+            let ids = getSelectedIds();
+            if (!ids.length) return;
+            if (confirm(`确定删除 ${ids.length} 个需求吗？`)) {
+                requirements = requirements.filter(r => !ids.includes(r.id));
+                if (currentEditId && ids.includes(currentEditId)) currentEditId = null;
+                saveToLocalStorage();
+                refreshView();
+                showToast(`已删除 ${ids.length} 个需求`);
             }
         }
-        const newNum = maxNum + 1;
-        return `REQ-${newNum.toString().padStart(4, '0')}`;
-    }
 
-    function saveToLocalStorage() {
-        localStorage.setItem('requirementsSystem', JSON.stringify(requirements));
-        updateHospitalFilterOptions();
-        refreshFilteredView();
-    }
-
-    function getAllUniqueHospitals() {
-        const hospitals = new Set();
-        for (let req of requirements) {
-            if (req.hospital && req.hospital.trim() !== '') hospitals.add(req.hospital.trim());
+        function deleteSingleRequirement(id) {
+            if (confirm('删除该需求？')) {
+                requirements = requirements.filter(r => r.id !== id);
+                if (currentEditId === id) currentEditId = null;
+                saveToLocalStorage();
+                refreshView();
+                showToast('已删除');
+            }
         }
-        return Array.from(hospitals).sort();
-    }
 
-    function updateHospitalFilterOptions() {
-        const hospitals = getAllUniqueHospitals();
-        const currentVal = hospitalFilterSelect.value;
-        let options = '<option value="__ALL__">🏥 全部医院</option>';
-        for (let h of hospitals) {
-            options += `<option value="${escapeHtmlForAttr(h)}">🏥 ${escapeHtml(h)}</option>`;
-        }
-        hospitalFilterSelect.innerHTML = options;
-        if (currentVal !== '__ALL__' && hospitals.includes(currentVal)) {
-            hospitalFilterSelect.value = currentVal;
-        } else {
-            hospitalFilterSelect.value = '__ALL__';
-            if (currentFilterHospital !== '__ALL__' && !hospitals.includes(currentFilterHospital)) {
-                currentFilterHospital = '__ALL__';
-            } else if (currentFilterHospital !== '__ALL__' && hospitals.includes(currentFilterHospital)) {
-                hospitalFilterSelect.value = currentFilterHospital;
+        // ---------- 弹窗核心函数（稳定版）----------
+        function openReqModal(isEdit = false, reqData = null) {
+            if (isEdit && reqData) {
+                modalTitle.innerText = '编辑需求';
+                modalJiraKey.value = reqData.jiraKey || '';
+                modalName.value = reqData.name || '';
+                modalHospital.value = reqData.hospital || '';
+                modalDueDate.value = reqData.dueDate || '';
+                modalPriority.value = reqData.priority || '中';
+                modalDesc.value = reqData.description || '';
+                currentEditId = reqData.id;
             } else {
-                hospitalFilterSelect.value = currentFilterHospital;
+                modalTitle.innerText = '新增需求';
+                modalJiraKey.value = '';
+                modalName.value = '';
+                modalHospital.value = '';
+                modalDueDate.value = '';
+                modalPriority.value = '中';
+                modalDesc.value = '';
+                currentEditId = null;
+            }
+            reqModal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            setTimeout(() => modalJiraKey.focus(), 50);
+        }
+
+        function closeReqModal() {
+            reqModal.classList.remove('active');
+            document.body.style.overflow = '';
+            currentEditId = null;
+        }
+
+        function saveReqFromModal() {
+            let rawJira = modalJiraKey.value.trim();
+            if (!rawJira) { showToast('请填写Jira编号或完整URL', true); return; }
+            let { key: jiraKey, base: extractedBase } = smartExtractJira(rawJira);
+            if (!jiraKey) { showToast('无法解析编号', true); return; }
+            if (extractedBase && extractedBase !== jiraBaseUrl) {
+                jiraBaseUrl = extractedBase;
+                localStorage.setItem('jiraBaseUrl', jiraBaseUrl);
+                showToast(`已自动设置Jira基础地址: ${extractedBase}`);
+            }
+            let name = modalName.value.trim();
+            if (!name) { showToast('请填写需求名称', true); return; }
+            let hospital = modalHospital.value.trim();
+            if (!hospital) { showToast('请填写项目医院', true); return; }
+            let description = modalDesc.value.trim() || '';
+            let dueDate = modalDueDate.value;
+            if (!dueDate) dueDate = new Date().toISOString().slice(0,10);
+            let priority = modalPriority.value;
+
+            const isUnique = (key, excludeId) => !requirements.some(r => r.jiraKey === key && r.id !== excludeId);
+            if (currentEditId !== null) {
+                let idx = requirements.findIndex(r => r.id === currentEditId);
+                if (idx !== -1) {
+                    if (requirements[idx].jiraKey !== jiraKey && !isUnique(jiraKey, currentEditId)) {
+                        showToast('Jira编号已存在', true); return;
+                    }
+                    requirements[idx] = { ...requirements[idx], jiraKey, name, hospital, description, dueDate, priority };
+                    saveToLocalStorage();
+                    closeReqModal();
+                    refreshView();
+                } else { closeReqModal(); }
+            } else {
+                if (!isUnique(jiraKey, null)) { showToast('Jira编号已存在', true); return; }
+                let newId = Date.now();
+                requirements.push({ id: newId, jiraKey, name, hospital, description, dueDate, priority });
+                saveToLocalStorage();
+                closeReqModal();
+                refreshView();
+            }
+            updateFilterOptions();
+        }
+
+        function openEditModal(id) {
+            let req = requirements.find(r => r.id === id);
+            if (req) openReqModal(true, req);
+        }
+
+        // Jira设置弹窗
+        function openJiraSettingsModal() {
+            jiraBaseUrlInput.value = jiraBaseUrl;
+            jiraSettingsModal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeJiraSettingsModal() {
+            jiraSettingsModal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        function saveJiraUrl() {
+            let newUrl = jiraBaseUrlInput.value.trim();
+            if (newUrl && !newUrl.endsWith('/')) newUrl += '/';
+            if (newUrl) {
+                jiraBaseUrl = newUrl;
+                localStorage.setItem('jiraBaseUrl', jiraBaseUrl);
+                showToast('Jira基础地址已保存');
+                closeJiraSettingsModal();
+            } else showToast('无效地址', true);
+        }
+
+        // ---------- 刷新表格 ----------
+        function refreshView() {
+            let filtered = getFiltered();
+            if (!filtered.length) {
+                tableBody.innerHTML = '<tr class="empty-row"><td colspan="9">暂无需求</td></tr>';
+                initSortable();
+                updateStats();
+                updateBatchDeleteButton();
+                selectAllChk.checked = false;
+                return;
+            }
+            let html = '';
+            for (let req of filtered) {
+                html += `<tr data-id="${req.id}">
+                    <td class="checkbox-col"><input type="checkbox" class="row-checkbox" data-id="${req.id}"></td>
+                    <td class="drag-handle" style="cursor:grab; text-align:center;">⋮⋮</td>
+                    <td><span class="jira-link" data-jira-key="${escapeAttr(req.jiraKey)}">${escapeHtml(req.jiraKey)}</span></td>
+                    <td>${escapeHtml(req.name)}</td>
+                    <td><span class="hospital-badge">${escapeHtml(req.hospital)}</span></td>
+                    <td>${escapeHtml(req.description || '—')}</td>
+                    <td>${escapeHtml(req.dueDate || '未设置')}</td>
+                    <td><span class="priority-badge priority-${req.priority === '高' ? 'high' : (req.priority === '中' ? 'medium' : 'low')}">${escapeHtml(req.priority)}</span></td>
+                    <td><button type="button" class="edit-icon" data-id="${req.id}">编辑</button> <button type="button" class="delete-icon" data-id="${req.id}">删除</button></td>
+                </tr>`;
+            }
+            tableBody.innerHTML = html;
+            // 复选框事件
+            document.querySelectorAll('.row-checkbox').forEach(cb => {
+                cb.removeEventListener('change', checkboxChangeHandler);
+                cb.addEventListener('change', checkboxChangeHandler);
+            });
+            initSortable();
+            updateStats();
+            updateBatchDeleteButton();
+            updateSelectAllCheckbox();
+        }
+
+        function checkboxChangeHandler() {
+            updateBatchDeleteButton();
+            updateSelectAllCheckbox();
+        }
+
+        // 全局事件委托（稳定处理动态元素）
+        function globalClickHandler(e) {
+            const target = e.target;
+            if (target.classList.contains('jira-link')) {
+                e.stopPropagation();
+                openJira(target.getAttribute('data-jira-key'));
+            } else if (target.classList.contains('edit-icon')) {
+                let id = parseInt(target.getAttribute('data-id'));
+                openEditModal(id);
+            } else if (target.classList.contains('delete-icon')) {
+                let id = parseInt(target.getAttribute('data-id'));
+                deleteSingleRequirement(id);
             }
         }
-        currentFilterHospital = hospitalFilterSelect.value;
-        let datalistHtml = '';
-        for (let h of hospitals) {
-            datalistHtml += `<option value="${escapeHtmlForAttr(h)}">`;
-        }
-        hospitalDatalist.innerHTML = datalistHtml;
-        updateFilterStats();
-    }
 
-    function updateFilterStats() {
-        const total = requirements.length;
-        if (currentFilterHospital === '__ALL__') {
-            filterStatsSpan.innerText = `共 ${total} 个需求`;
-        } else {
-            const filteredCount = getFilteredRequirements().length;
-            filterStatsSpan.innerText = `「${currentFilterHospital}」下 ${filteredCount} 个需求 / 总计 ${total}`;
-        }
-    }
-
-    function getFilteredRequirements() {
-        if (currentFilterHospital === '__ALL__') return [...requirements];
-        return requirements.filter(r => r.hospital === currentFilterHospital);
-    }
-
-    function refreshFilteredView() {
-        if (!tableBody) return;
-        const filteredReqs = getFilteredRequirements();
-        if (!filteredReqs.length) {
-            tableBody.innerHTML = `<tr class="empty-row"><td colspan="8">✨ 暂无需求，点击上方表单添加 ~</td></tr>`;
-            initSortableForFiltered();
-            updateFilterStats();
-            return;
-        }
-        let html = '';
-        for (let req of filteredReqs) {
-            const dueDate = req.dueDate || '未设置';
-            const hospitalShort = req.hospital ? (req.hospital.length > 20 ? req.hospital.substring(0,18)+'…' : req.hospital) : '—';
-            const descriptionText = req.description ? (req.description.length > 28 ? req.description.substring(0,25)+'...' : req.description) : '—';
-            html += `
-                <tr data-id="${req.id}" data-hospital="${escapeHtmlForAttr(req.hospital)}">
-                    <td class="drag-handle" style="cursor: grab; text-align: center; font-size: 20px;">⋮⋮</td>
-                    <td style="font-weight:500; font-family: monospace;">${escapeHtml(req.reqId)}</td>
-                    <td style="font-weight:500;">${escapeHtml(req.name)}</td>
-                    <td><span class="hospital-badge">${escapeHtml(hospitalShort)}</span></td>
-                    <td style="max-width: 260px; word-break: break-word;">${escapeHtml(descriptionText)}</td>
-                    <td>${escapeHtml(dueDate)}</td>
-                    <td><span class="priority-badge ${getPriorityClass(req.priority)}">${escapeHtml(req.priority)}</span></td>
-                    <td class="action-buttons">
-                        <button class="edit-icon" data-id="${req.id}" data-action="edit">✏️ 编辑</button>
-                        <button class="delete-icon" data-id="${req.id}" data-action="delete">🗑️ 删除</button>
-                    </td>
-                </tr>
-            `;
-        }
-        tableBody.innerHTML = html;
-        tableBody.querySelectorAll('.edit-icon').forEach(btn => {
-            btn.removeEventListener('click', handleEditClick);
-            btn.addEventListener('click', handleEditClick);
-        });
-        tableBody.querySelectorAll('.delete-icon').forEach(btn => {
-            btn.removeEventListener('click', handleDeleteClick);
-            btn.addEventListener('click', handleDeleteClick);
-        });
-        initSortableForFiltered();
-        updateFilterStats();
-    }
-
-    function getPriorityClass(priority) {
-        if (priority === '高') return 'priority-high';
-        if (priority === '中') return 'priority-medium';
-        return 'priority-low';
-    }
-
-    function handleDragEnd() {
-        const rows = tableBody.querySelectorAll('tr');
-        if (!rows.length) return;
-        const newOrderIds = [];
-        for (let row of rows) {
-            const idAttr = row.getAttribute('data-id');
-            if (idAttr) newOrderIds.push(parseInt(idAttr));
-        }
-        if (newOrderIds.length === 0) return;
-        const currentFiltered = getFilteredRequirements();
-        if (currentFiltered.length !== newOrderIds.length) return;
-        const reqMap = new Map();
-        for (let req of requirements) reqMap.set(req.id, req);
-        const newOrderedFilteredReqs = [];
-        for (let id of newOrderIds) {
-            if (reqMap.has(id)) newOrderedFilteredReqs.push(reqMap.get(id));
-            else return;
-        }
-        if (currentFilterHospital === '__ALL__') {
-            if (newOrderedFilteredReqs.length === requirements.length) {
-                requirements = newOrderedFilteredReqs;
-                saveToLocalStorage();
-            } else refreshFilteredView();
-        } else {
-            const newRequirements = [];
-            let currentHospitalIndex = 0;
-            for (let originalReq of requirements) {
-                if (originalReq.hospital === currentFilterHospital) {
-                    if (currentHospitalIndex < newOrderedFilteredReqs.length) {
-                        newRequirements.push(newOrderedFilteredReqs[currentHospitalIndex]);
-                        currentHospitalIndex++;
-                    } else newRequirements.push(originalReq);
-                } else newRequirements.push(originalReq);
-            }
-            if (newRequirements.length === requirements.length) {
-                requirements = newRequirements;
-                saveToLocalStorage();
-            } else refreshFilteredView();
-        }
-    }
-
-    function initSortableForFiltered() {
-        if (sortableInstance) sortableInstance.destroy();
-        const tbody = document.getElementById('reqTableBody');
-        if (!tbody) return;
-        const hasData = tbody.querySelector('tr:not(.empty-row)');
-        if (!hasData) return;
-        sortableInstance = new Sortable(tbody, {
-            handle: '.drag-handle',
-            animation: 200,
-            ghostClass: 'dragging-ghost',
-            onEnd: () => handleDragEnd()
-        });
-    }
-
-    function resetForm() {
-        reqNameInput.value = '';
-        reqHospitalInput.value = '';
-        reqDescInput.value = '';
-        // 日期默认置空，但保存时强制必填，用户可自己选
-        reqDueDateInput.value = '';
-        reqPrioritySelect.value = '中';
-        currentEditId = null;
-        formModeLabel.innerText = '新增需求';
-        saveBtn.innerHTML = '➕ 保存需求';
-        cancelEditBtn.style.display = 'none';
-    }
-
-    function fillFormForEdit(req) {
-        reqNameInput.value = req.name;
-        reqHospitalInput.value = req.hospital || '';
-        reqDescInput.value = req.description || '';
-        reqDueDateInput.value = req.dueDate || '';
-        reqPrioritySelect.value = req.priority;
-        currentEditId = req.id;
-        formModeLabel.innerText = '✏️ 编辑需求';
-        saveBtn.innerHTML = '✏️ 更新需求';
-        cancelEditBtn.style.display = 'inline-flex';
-    }
-
-    function handleSaveOrUpdate() {
-        const name = reqNameInput.value.trim();
-        if (!name) { alert('请填写需求名称'); return; }
-        const hospital = reqHospitalInput.value.trim();
-        if (!hospital) { alert('请填写项目医院'); return; }
-        const description = reqDescInput.value.trim() || '';
-        let dueDate = reqDueDateInput.value;
-        if (!dueDate) {
-            // 如果没有选择日期，默认今天
-            dueDate = new Date().toISOString().slice(0,10);
-        }
-        const priority = reqPrioritySelect.value;
-        if (currentEditId !== null) {
-            const index = requirements.findIndex(r => r.id === currentEditId);
-            if (index !== -1) {
-                requirements[index].name = name;
-                requirements[index].hospital = hospital;
-                requirements[index].description = description;
-                requirements[index].dueDate = dueDate;
-                requirements[index].priority = priority;
-                saveToLocalStorage();
-                refreshFilteredView();
-                resetForm();
-            } else { resetForm(); refreshFilteredView(); }
-        } else {
-            const newId = Date.now();
-            const newReqId = generateNewReqId();
-            requirements.push({ id: newId, reqId: newReqId, name, hospital, description, dueDate, priority });
-            saveToLocalStorage();
-            resetForm();
-            refreshFilteredView();
-        }
-        updateHospitalFilterOptions();
-    }
-
-    function cancelEdit() { resetForm(); }
-    function deleteRequirement(id) {
-        if (confirm('确定删除该需求吗？')) {
-            requirements = requirements.filter(r => r.id !== id);
-            saveToLocalStorage();
-            if (currentEditId === id) resetForm();
-            refreshFilteredView();
-            updateHospitalFilterOptions();
-        }
-    }
-    function editRequirement(id) {
-        const req = requirements.find(r => r.id === id);
-        if (req) fillFormForEdit(req);
-    }
-    function handleEditClick(e) { editRequirement(parseInt(e.currentTarget.getAttribute('data-id'))); }
-    function handleDeleteClick(e) { deleteRequirement(parseInt(e.currentTarget.getAttribute('data-id'))); }
-
-    function loadFromLocalStorage() {
-        const stored = localStorage.getItem('requirementsSystem');
-        if (stored) {
-            try {
-                requirements = JSON.parse(stored);
-                let needUpdate = false;
-                for (let req of requirements) {
-                    if (req.hospital === undefined) { req.hospital = '未指定医院'; needUpdate = true; }
+        // 拖拽排序
+        function initSortable() {
+            if (sortableInstance) sortableInstance.destroy();
+            let tbody = document.getElementById('reqTableBody');
+            if (!tbody || !tbody.querySelector('tr:not(.empty-row)')) return;
+            sortableInstance = new Sortable(tbody, {
+                handle: '.drag-handle',
+                animation: 200,
+                onEnd: () => {
+                    let ids = [...tbody.querySelectorAll('tr')].map(tr => parseInt(tr.getAttribute('data-id'))).filter(id => !isNaN(id));
+                    if (ids.length !== getFiltered().length) return;
+                    let map = new Map(requirements.map(r => [r.id, r]));
+                    let newOrder = ids.map(id => map.get(id)).filter(r => r);
+                    if (currentFilterHospital === '__ALL__') {
+                        requirements = newOrder;
+                    } else {
+                        let newReqs = [];
+                        let idx = 0;
+                        for (let r of requirements) {
+                            if (r.hospital === currentFilterHospital) newReqs.push(newOrder[idx++]);
+                            else newReqs.push(r);
+                        }
+                        requirements = newReqs;
+                    }
+                    saveToLocalStorage();
+                    refreshView();
                 }
-                if (needUpdate) saveToLocalStorage();
-                if (!Array.isArray(requirements)) requirements = [];
-            } catch(e) { requirements = []; }
+            });
         }
-        if (!requirements || requirements.length === 0) {
-            const today = new Date().toISOString().slice(0,10);
-            const nextWeek = new Date(Date.now() + 7*86400000).toISOString().slice(0,10);
-            requirements = [
-                { id: 1001, reqId: "REQ-0001", name: "智慧门诊系统", hospital: "市第一人民医院", description: "升级智能分诊叫号系统", dueDate: nextWeek, priority: "高" },
-                { id: 1002, reqId: "REQ-0002", name: "住院病历电子化", hospital: "仁爱医院", description: "实现无纸化病历录入", dueDate: today, priority: "中" },
-                { id: 1003, reqId: "REQ-0003", name: "药房库存预警", hospital: "中心医院", description: "低库存自动预警", dueDate: "2026-06-15", priority: "高" }
-            ];
-            saveToLocalStorage();
+
+        // Word导入
+        async function importWord(file) {
+            try {
+                let ab = await file.arrayBuffer();
+                let result = await mammoth.convertToHtml({ arrayBuffer: ab });
+                let parser = new DOMParser();
+                let doc = parser.parseFromString(result.value, 'text/html');
+                let tables = doc.querySelectorAll('table');
+                if (!tables.length) { showToast('未找到表格', true); return; }
+                let rows = tables[0].querySelectorAll('tr');
+                if (rows.length < 2) { showToast('表格无数据行', true); return; }
+                let header = rows[0].querySelectorAll('th, td');
+                let idx = { hospital: -1, name: -1, desc: -1 };
+                for (let i = 0; i < header.length; i++) {
+                    let txt = header[i].innerText.trim().toLowerCase();
+                    if (txt.includes('项目医院') || txt.includes('医院')) idx.hospital = i;
+                    else if (txt.includes('需求名称') || txt.includes('名称')) idx.name = i;
+                    else if (txt.includes('需求描述') || txt.includes('描述')) idx.desc = i;
+                }
+                if (idx.hospital === -1 || idx.name === -1) { showToast('表格需要“项目医院”和“需求名称”列', true); return; }
+                let today = new Date().toISOString().slice(0,10), newReqs = [];
+                for (let i = 1; i < rows.length; i++) {
+                    let cells = rows[i].querySelectorAll('th, td');
+                    if (cells.length === 0) continue;
+                    let get = (i) => i !== -1 && cells[i] ? cells[i].innerText.trim() : '';
+                    let hospital = get(idx.hospital), name = get(idx.name);
+                    if (!hospital || !name) continue;
+                    let desc = get(idx.desc);
+                    let jiraKey = `IMPORT-${Date.now()}-${i}`;
+                    while (requirements.some(r => r.jiraKey === jiraKey)) jiraKey = `IMPORT-${Date.now()}-${i}-${Math.random()}`;
+                    newReqs.push({ id: Date.now()+i, jiraKey, name, hospital, description: desc, dueDate: today, priority: '中' });
+                }
+                if (!newReqs.length) { showToast('未解析到有效数据', true); return; }
+                requirements.push(...newReqs);
+                saveToLocalStorage();
+                refreshView();
+                showToast(`导入 ${newReqs.length} 条需求`);
+            } catch(e) { showToast('解析Word失败', true); console.error(e); }
         }
-    }
 
-    function onFilterChange() {
-        const newVal = hospitalFilterSelect.value;
-        if (newVal === currentFilterHospital) return;
-        currentFilterHospital = newVal;
-        refreshFilteredView();
-        updateFilterStats();
-    }
-
-    // ---------- 导入 Word 核心（只取三字段：项目医院、需求名称、需求描述） ----------
-    async function importFromWord(file) {
-        try {
-            const arrayBuffer = await file.arrayBuffer();
-            const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
-            const htmlContent = result.value;
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlContent, 'text/html');
-            const tables = doc.querySelectorAll('table');
-            if (!tables.length) {
-                showToast('未检测到表格，请确保Word文档中包含表格（列：项目医院、需求名称、需求描述）', true);
-                return;
+        // 加载本地数据
+        function loadFromStorage() {
+            let stored = localStorage.getItem('requirementsSystem');
+            if (stored) {
+                try {
+                    requirements = JSON.parse(stored);
+                    if (!Array.isArray(requirements)) requirements = [];
+                } catch(e) { requirements = []; }
             }
-            const table = tables[0];
-            const rows = table.querySelectorAll('tr');
-            if (rows.length < 2) {
-                showToast('表格至少需要表头+数据行', true);
-                return;
+            if (!requirements.length) {
+                let today = new Date().toISOString().slice(0,10);
+                let nextWeek = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+                requirements = [
+                    { id:1001, jiraKey:"HEALTH-101", name:"智慧门诊系统", hospital:"市第一人民医院", description:"升级智能分诊", dueDate:nextWeek, priority:"高" },
+                    { id:1002, jiraKey:"HEALTH-102", name:"住院病历电子化", hospital:"仁爱医院", description:"无纸化病历", dueDate:today, priority:"中" },
+                    { id:1003, jiraKey:"HEALTH-103", name:"药房库存预警", hospital:"中心医院", description:"低库存预警", dueDate:"2026-06-15", priority:"高" }
+                ];
+                saveToLocalStorage();
             }
-            // 解析表头，匹配需要的三列
-            const headerCells = rows[0].querySelectorAll('th, td');
-            const headerTexts = Array.from(headerCells).map(cell => cell.innerText.trim().toLowerCase());
-            let colIdx = { hospital: -1, name: -1, desc: -1 };
-            for (let i = 0; i < headerTexts.length; i++) {
-                const txt = headerTexts[i];
-                if (txt.includes('项目医院') || txt.includes('医院')) colIdx.hospital = i;
-                else if (txt.includes('需求名称') || txt.includes('名称')) colIdx.name = i;
-                else if (txt.includes('需求描述') || txt.includes('描述')) colIdx.desc = i;
+            let needFix = false;
+            for (let r of requirements) {
+                if (!r.jiraKey) { r.jiraKey = `MIG-${r.id}`; needFix=true; }
+                if (!r.hospital) { r.hospital="未指定医院"; needFix=true; }
+                if (!r.dueDate) { r.dueDate = new Date().toISOString().slice(0,10); needFix=true; }
             }
-            // 必须包含医院和名称列
-            if (colIdx.hospital === -1 || colIdx.name === -1) {
-                showToast('表格必须包含「项目医院」和「需求名称」两列（缺一不可）', true);
-                return;
-            }
-            const newReqs = [];
-            const today = new Date().toISOString().slice(0,10);
-            for (let i = 1; i < rows.length; i++) {
-                const cells = rows[i].querySelectorAll('th, td');
-                if (cells.length === 0) continue;
-                const getCellText = (idx) => idx !== -1 && cells[idx] ? cells[idx].innerText.trim() : '';
-                const hospital = getCellText(colIdx.hospital);
-                const name = getCellText(colIdx.name);
-                if (!hospital || !name) continue; // 跳过关键字段缺失的行
-                const description = colIdx.desc !== -1 ? getCellText(colIdx.desc) : '';
-                // 自动生成唯一ID和编号
-                const newId = Date.now() + i + Math.random() * 10000;
-                const newReqId = generateNewReqId(); // 动态生成，依赖现有requirements，先push再重新生成顺序麻烦，先临时生成后补
-                newReqs.push({
-                    id: newId,
-                    reqId: `REQ-TEMP`,   // 临时占位，后面统一刷新编号
-                    name: name,
-                    hospital: hospital,
-                    description: description,
-                    dueDate: today,
-                    priority: '中'
-                });
-            }
-            if (newReqs.length === 0) {
-                showToast('未从表格中解析到有效需求（至少需要医院和名称非空）', true);
-                return;
-            }
-            // 为了确保编号连续且不冲突，先将新需求临时加入，再统一刷新编号（使用最终保存前的编号生成）
-            // 更稳健：逐个生成编号，因为 generateNewReqId 基于现有 requirements 实时计算。
-            const finalNewReqs = [];
-            for (let item of newReqs) {
-                const freshId = Date.now() + Math.random() * 10000;
-                const freshReqId = generateNewReqId(); // 基于当前requirements生成新编号
-                finalNewReqs.push({
-                    id: freshId,
-                    reqId: freshReqId,
-                    name: item.name,
-                    hospital: item.hospital,
-                    description: item.description,
-                    dueDate: item.dueDate,
-                    priority: item.priority
-                });
-            }
-            requirements.push(...finalNewReqs);
-            saveToLocalStorage();
-            refreshFilteredView();
-            showToast(`✅ 成功导入 ${finalNewReqs.length} 条需求（自动设置完成时间=今天，优先级=中）`);
-        } catch (err) {
-            console.error(err);
-            showToast('解析Word失败，请确保文件为.docx格式且包含标准表格', true);
+            if (needFix) saveToLocalStorage();
         }
-    }
 
-    function bindEvents() {
-        saveBtn.addEventListener('click', (e) => { e.preventDefault(); handleSaveOrUpdate(); });
-        cancelEditBtn.addEventListener('click', (e) => { e.preventDefault(); cancelEdit(); });
-        hospitalFilterSelect.addEventListener('change', onFilterChange);
-        importWordBtn.addEventListener('click', () => { wordFileInput.click(); });
-        wordFileInput.addEventListener('change', (e) => {
-            if (e.target.files && e.target.files[0]) {
-                const file = e.target.files[0];
-                if (file.name.endsWith('.docx')) importFromWord(file);
-                else showToast('仅支持 .docx 格式文件', true);
+        function loadJiraUrl() {
+            let stored = localStorage.getItem('jiraBaseUrl');
+            if (stored) {
+                jiraBaseUrl = stored;
+                jiraBaseUrlInput.value = stored;
+            } else {
+                jiraBaseUrlInput.value = jiraBaseUrl;
+            }
+        }
+
+        // 绑定UI事件
+        function bindEvents() {
+            openAddModalBtn.onclick = () => openReqModal(false);
+            batchDeleteBtn.onclick = batchDelete;
+            importWordBtn.onclick = () => wordFileInput.click();
+            wordFileInput.onchange = (e) => {
+                if (e.target.files?.[0] && e.target.files[0].name.endsWith('.docx')) importWord(e.target.files[0]);
+                else if(e.target.files?.[0]) showToast('仅支持.docx', true);
                 wordFileInput.value = '';
-            }
-        });
-    }
+            };
+            hospitalFilter.onchange = () => { currentFilterHospital = hospitalFilter.value; refreshView(); };
+            selectAllChk.onchange = (e) => {
+                let isChecked = e.target.checked;
+                document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = isChecked);
+                updateBatchDeleteButton();
+            };
+            modalSaveBtn.onclick = saveReqFromModal;
+            modalCancelBtn.onclick = closeReqModal;
+            closeModalBtn.onclick = closeReqModal;
+            reqModal.onclick = (e) => { if (e.target === reqModal) closeReqModal(); };
+            openJiraSettingsBtn.onclick = openJiraSettingsModal;
+            saveJiraSettingsBtn.onclick = saveJiraUrl;
+            cancelJiraSettingsBtn.onclick = closeJiraSettingsModal;
+            closeJiraSettingsBtn.onclick = closeJiraSettingsModal;
+            jiraSettingsModal.onclick = (e) => { if (e.target === jiraSettingsModal) closeJiraSettingsModal(); };
+            // ESC关闭弹窗
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (reqModal.classList.contains('active')) closeReqModal();
+                    if (jiraSettingsModal.classList.contains('active')) closeJiraSettingsModal();
+                }
+            });
+        }
 
-    const style = document.createElement('style');
-    style.textContent = `.dragging-ghost { opacity: 0.5; background: #dbeafe; box-shadow: 0 5px 12px rgba(0,0,0,0.1); } .sortable-drag { cursor: grabbing; }`;
-    document.head.appendChild(style);
-    function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
-    function escapeHtmlForAttr(str) { if (!str) return ''; return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-    function init() { loadFromLocalStorage(); updateHospitalFilterOptions(); refreshFilteredView(); bindEvents(); }
-    init();
+        function escapeHtml(s) { if(!s) return ''; return s.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+        function escapeAttr(s) { if(!s) return ''; return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+        function init() {
+            loadJiraUrl();
+            loadFromStorage();
+            updateFilterOptions();
+            refreshView();
+            bindEvents();
+            document.addEventListener('click', globalClickHandler);
+        }
+        init();
+    })();
 </script>
 </body>
 </html>
