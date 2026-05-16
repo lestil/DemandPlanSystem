@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>需求管理系统 - 稳定弹窗版 | 批量删除 | Jira跳转</title>
-    <!-- SortableJS 拖拽库 -->
+    <title>需求管理系统 - 状态管理 | 排序过滤 | Jira集成</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-    <!-- mammoth.js 解析 Word -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
     <style>
         * {
@@ -121,6 +119,13 @@
             padding: 0.2rem 0.7rem;
             border-radius: 30px;
         }
+        .search-input {
+            padding: 0.4rem 0.8rem;
+            border-radius: 40px;
+            border: 1px solid #cbd5e1;
+            width: 220px;
+            font-size: 0.8rem;
+        }
         .table-wrapper {
             overflow-x: auto;
         }
@@ -128,20 +133,42 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.85rem;
-            min-width: 1100px;
+            min-width: 1200px;
         }
         .req-table th {
             text-align: left;
             padding: 1rem 0.8rem;
             background: #f8fafc;
             border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .req-table th span.sort-icon {
+            display: inline-block;
+            margin-left: 6px;
+            font-size: 0.7rem;
+            opacity: 0.6;
         }
         .req-table td {
             padding: 0.9rem 0.8rem;
             border-bottom: 1px solid #f0f2f7;
             vertical-align: middle;
             background: white;
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
+        /* 特定列宽控制 */
+        .req-table th:nth-child(2), .req-table td:nth-child(2) { max-width: 90px; width: 90px; } /* Jira编号 */
+        .req-table th:nth-child(3), .req-table td:nth-child(3) { min-width: 140px; max-width: 180px; } /* 需求名称 */
+        .req-table th:nth-child(4), .req-table td:nth-child(4) { min-width: 120px; max-width: 160px; } /* 项目医院 */
+        .req-table th:nth-child(5), .req-table td:nth-child(5) { min-width: 150px; max-width: 220px; } /* 需求描述 */
+        .req-table th:nth-child(6), .req-table td:nth-child(6) { width: 110px; } /* 预计完成时间 */
+        .req-table th:nth-child(7), .req-table td:nth-child(7) { width: 80px; } /* 优先级 */
+        .req-table th:nth-child(8), .req-table td:nth-child(8) { width: 90px; } /* 状态 */
         .drag-handle {
             cursor: grab;
             font-size: 1.3rem;
@@ -152,15 +179,26 @@
         }
         .priority-badge {
             display: inline-block;
-            padding: 0.2rem 0.7rem;
+            padding: 0.2rem 0.6rem;
             border-radius: 40px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
+            font-weight: 500;
         }
         .priority-high { background: #fee2e2; color: #b91c1c; }
         .priority-medium { background: #fff3e3; color: #b45309; }
         .priority-low { background: #e0f2fe; color: #0369a1; }
-        .hospital-badge { background: #eef2ff; padding: 0.2rem 0.5rem; border-radius: 20px; font-size: 0.7rem; color: #1e40af; }
-        .jira-link { color: #2563eb; text-decoration: none; font-weight: 500; border-bottom: 1px dashed #94a3b8; cursor: pointer; }
+        .status-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+        .status-pending { background: #f1f5f9; color: #334155; }
+        .status-dev { background: #fef9c3; color: #854d0e; }
+        .status-done { background: #dcfce7; color: #166534; }
+        .hospital-badge { background: #eef2ff; padding: 0.2rem 0.5rem; border-radius: 20px; font-size: 0.7rem; color: #1e40af; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .jira-link { color: #2563eb; text-decoration: none; font-weight: 500; border-bottom: 1px dashed #94a3b8; cursor: pointer; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
         .edit-icon, .delete-icon { cursor: pointer; border: none; padding: 0.3rem 0.6rem; border-radius: 30px; font-size: 0.7rem; margin:0 2px; }
         .edit-icon { background: #e6f0ff; color: #1e40af; }
         .delete-icon { background: #ffe4e4; color: #b91c1c; }
@@ -168,7 +206,7 @@
         .empty-row td { text-align: center; padding: 3rem; color: #94a3b8; }
         footer { text-align: center; margin-top: 2rem; color: #6c86a3; font-size: 0.75rem; }
 
-        /* 弹窗样式：使用 display + active 控制，最稳定 */
+        /* 弹窗样式 */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -178,23 +216,17 @@
             justify-content: center;
             z-index: 99999;
         }
-        .modal-overlay.active {
-            display: flex;
-        }
+        .modal-overlay.active { display: flex; }
         .modal-container {
             background: white;
             width: 90%;
             max-width: 700px;
             border-radius: 28px;
-            box-shadow: 0 25px 40px rgba(0,0,0,0.2);
             padding: 1.8rem 2rem;
-            position: relative;
             transform: scale(0.96);
-            transition: transform 0.2s ease;
+            transition: transform 0.2s;
         }
-        .modal-overlay.active .modal-container {
-            transform: scale(1);
-        }
+        .modal-overlay.active .modal-container { transform: scale(1); }
         .modal-header {
             display: flex;
             justify-content: space-between;
@@ -203,67 +235,22 @@
             font-size: 1.4rem;
             font-weight: 600;
         }
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 1.8rem;
-            cursor: pointer;
-            color: #64748b;
-        }
-        .modal-form .form-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-        .modal-form .field-group {
-            flex: 1;
-            min-width: 160px;
-        }
-        .modal-form label {
-            font-size: 0.75rem;
-            font-weight: 500;
-            color: #334155;
-            display: block;
-            margin-bottom: 0.2rem;
-        }
-        .modal-form input, .modal-form select, .modal-form textarea {
-            width: 100%;
-            padding: 0.5rem 0.7rem;
-            border: 1px solid #cbd5e1;
-            border-radius: 12px;
-            font-size: 0.85rem;
-        }
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.8rem;
-            margin-top: 1.5rem;
-        }
-        .checkbox-col {
-            width: 32px;
-            text-align: center;
-        }
-        .select-all-checkbox {
-            transform: scale(1.1);
-            cursor: pointer;
-        }
-        .jira-settings-modal .modal-container {
-            max-width: 480px;
-        }
-        .jira-url-input {
-            width: 100%;
-            padding: 0.6rem;
-            border: 1px solid #cbd5e1;
-            border-radius: 16px;
-            font-size: 0.9rem;
-        }
+        .modal-close { background: none; border: none; font-size: 1.8rem; cursor: pointer; color: #64748b; }
+        .modal-form .form-grid { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
+        .modal-form .field-group { flex: 1; min-width: 160px; }
+        .modal-form label { font-size: 0.75rem; font-weight: 500; color: #334155; display: block; margin-bottom: 0.2rem; }
+        .modal-form input, .modal-form select, .modal-form textarea { width: 100%; padding: 0.5rem 0.7rem; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 0.85rem; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 0.8rem; margin-top: 1.5rem; }
+        .checkbox-col { width: 32px; text-align: center; }
+        .select-all-checkbox { transform: scale(1.1); cursor: pointer; }
+        .jira-settings-modal .modal-container { max-width: 480px; }
+        .jira-url-input { width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 16px; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <div><h1>🏥 需求排期 · Jira集成</h1><div class="sub">✨ 弹窗表单 · 批量删除 · 拖拽排序</div></div>
+        <div><h1>🏥 需求排期 · Jira集成</h1><div class="sub">✨ 状态跟踪 · 排序过滤 · 拖拽排序</div></div>
         <div class="info-note">⚡ 按住「⋮⋮」拖动行调整顺序</div>
     </div>
 
@@ -280,7 +267,8 @@
             <button type="button" class="btn btn-danger" id="batchDeleteBtn" style="display: none;">🗑️ 批量删除</button>
             <button type="button" class="btn btn-accent" id="importWordBtn">📄 导入Word需求书</button>
             <input type="file" id="wordFileInput" accept=".docx" style="display:none;">
-            <span class="filter-stats">💡 编号框粘贴完整Jira地址自动提取编号</span>
+            <input type="text" id="globalSearchInput" class="search-input" placeholder="🔍 全局搜索 (编号/名称/医院/描述)">
+            <span class="filter-stats">💡 点击表头排序，再次点击反向排序</span>
         </div>
         <div class="table-wrapper">
             <table class="req-table">
@@ -288,22 +276,23 @@
                     <tr>
                         <th class="checkbox-col"><input type="checkbox" id="selectAllCheckbox" class="select-all-checkbox"></th>
                         <th style="width:44px;">排序</th>
-                        <th>Jira编号 (点击跳转)</th>
-                        <th>需求名称</th>
-                        <th>项目医院</th>
-                        <th>需求描述</th>
-                        <th>预计完成时间</th>
-                        <th>优先级</th>
-                        <th style="width:120px;">操作</th>
+                        <th data-sort="jiraKey">Jira编号 <span class="sort-icon">↕️</span></th>
+                        <th data-sort="name">需求名称 <span class="sort-icon">↕️</span></th>
+                        <th data-sort="hospital">项目医院 <span class="sort-icon">↕️</span></th>
+                        <th data-sort="description">需求描述 <span class="sort-icon">↕️</span></th>
+                        <th data-sort="dueDate">预计完成时间 <span class="sort-icon">↕️</span></th>
+                        <th data-sort="priority">优先级 <span class="sort-icon">↕️</span></th>
+                        <th data-sort="status">状态 <span class="sort-icon">↕️</span></th>
+                        <th style="width:100px;">操作</th>
                     </tr>
                 </thead>
                 <tbody id="reqTableBody">
-                    <tr class="empty-row"><td colspan="9">加载中...</td></tr>
+                    <tr class="empty-row"><td colspan="10">加载中...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
-    <footer>🧩 数据持久化localStorage · 支持医院筛选 · 拖拽排序 · Word导入自动识别三字段 · 批量删除</footer>
+    <footer>🧩 数据持久化localStorage · 状态管理 · 全局搜索+表头排序 · 拖拽排序 · Word导入自动识别三字段 · 批量删除</footer>
 </div>
 
 <!-- 新增/编辑需求弹窗 -->
@@ -340,6 +329,14 @@
                         <option value="高">高</option>
                         <option value="中" selected>中</option>
                         <option value="低">低</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label>状态</label>
+                    <select id="modalStatus">
+                        <option value="未完成">未完成</option>
+                        <option value="研发中">研发中</option>
+                        <option value="已完成">已完成</option>
                     </select>
                 </div>
             </div>
@@ -379,14 +376,16 @@
 
 <script>
     (function() {
-        // ---------- 全局数据 ----------
         let requirements = [];
-        let currentEditId = null;          // null:新增模式
+        let currentEditId = null;
         let currentFilterHospital = "__ALL__";
         let sortableInstance = null;
         let jiraBaseUrl = "https://jira.atlassian.net/browse/";
+        let sortField = null;      // 排序字段
+        let sortDirection = "asc"; // asc 或 desc
+        let globalKeyword = "";    // 全局搜索关键词
 
-        // ---------- DOM 元素 ----------
+        // DOM 元素
         const hospitalFilter = document.getElementById('hospitalFilterSelect');
         const filterStats = document.getElementById('filterStats');
         const tableBody = document.getElementById('reqTableBody');
@@ -397,8 +396,9 @@
         const selectAllChk = document.getElementById('selectAllCheckbox');
         const toast = document.getElementById('toastMsg');
         const openJiraSettingsBtn = document.getElementById('openJiraSettingsBtn');
+        const globalSearchInput = document.getElementById('globalSearchInput');
 
-        // 需求弹窗元素
+        // 弹窗元素
         const reqModal = document.getElementById('reqModal');
         const modalTitle = document.getElementById('modalTitle');
         const modalJiraKey = document.getElementById('modalJiraKey');
@@ -407,19 +407,18 @@
         const modalHospitalDatalist = document.getElementById('modalHospitalDatalist');
         const modalDueDate = document.getElementById('modalDueDate');
         const modalPriority = document.getElementById('modalPriority');
+        const modalStatus = document.getElementById('modalStatus');
         const modalDesc = document.getElementById('modalDesc');
         const modalSaveBtn = document.getElementById('modalSaveBtn');
         const modalCancelBtn = document.getElementById('modalCancelBtn');
         const closeModalBtn = document.getElementById('closeModalBtn');
 
-        // Jira设置弹窗
         const jiraSettingsModal = document.getElementById('jiraSettingsModal');
         const jiraBaseUrlInput = document.getElementById('jiraBaseUrlInput');
         const saveJiraSettingsBtn = document.getElementById('saveJiraSettingsBtn');
         const cancelJiraSettingsBtn = document.getElementById('cancelJiraSettingsBtn');
         const closeJiraSettingsBtn = document.getElementById('closeJiraSettingsBtn');
 
-        // ---------- 辅助函数 ----------
         function showToast(msg, isErr) {
             toast.innerText = msg;
             toast.style.display = 'block';
@@ -446,19 +445,44 @@
             let datalistHtml = '';
             for (let h of hospitals) datalistHtml += `<option value="${escapeAttr(h)}">`;
             modalHospitalDatalist.innerHTML = datalistHtml;
-            updateStats();
+        }
+
+        // 核心：获取过滤+排序后的数据（用于展示）
+        function getDisplayList() {
+            let filtered = requirements.filter(item => {
+                if (currentFilterHospital !== "__ALL__" && item.hospital !== currentFilterHospital) return false;
+                if (globalKeyword.trim() !== "") {
+                    const kw = globalKeyword.trim().toLowerCase();
+                    return (item.jiraKey && item.jiraKey.toLowerCase().includes(kw)) ||
+                           (item.name && item.name.toLowerCase().includes(kw)) ||
+                           (item.hospital && item.hospital.toLowerCase().includes(kw)) ||
+                           (item.description && item.description.toLowerCase().includes(kw));
+                }
+                return true;
+            });
+            if (sortField) {
+                filtered.sort((a, b) => {
+                    let valA = a[sortField] || "";
+                    let valB = b[sortField] || "";
+                    if (sortField === "dueDate") {
+                        valA = valA || "9999-12-31";
+                        valB = valB || "9999-12-31";
+                    }
+                    if (typeof valA === "string") valA = valA.toLowerCase();
+                    if (typeof valB === "string") valB = valB.toLowerCase();
+                    if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+                    if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+                    return 0;
+                });
+            }
+            return filtered;
         }
 
         function updateStats() {
-            let total = requirements.length, filtered = getFiltered().length;
-            filterStats.innerText = currentFilterHospital === '__ALL__' ? `共 ${total} 个需求` : `「${currentFilterHospital}」下 ${filtered} 个 / 总计 ${total}`;
+            let displayList = getDisplayList();
+            filterStats.innerText = currentFilterHospital === '__ALL__' ? `共 ${requirements.length} 个需求，当前显示 ${displayList.length}` : `「${currentFilterHospital}」下 ${displayList.length} 个 / 总计 ${requirements.length}`;
         }
 
-        function getFiltered() {
-            return currentFilterHospital === '__ALL__' ? [...requirements] : requirements.filter(r => r.hospital === currentFilterHospital);
-        }
-
-        // 智能提取编号和基础URL
         function smartExtractJira(inputStr) {
             let trimmed = inputStr.trim();
             if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
@@ -470,7 +494,7 @@
                     if (key.includes('?')) key = key.split('?')[0];
                     if (key.includes('#')) key = key.split('#')[0];
                     let baseUrl = trimmed.substring(0, trimmed.lastIndexOf(key));
-                    return { key: key, base: baseUrl };
+                    return { key, base: baseUrl };
                 } catch(e) { return { key: trimmed, base: null }; }
             }
             return { key: trimmed, base: null };
@@ -482,24 +506,21 @@
             window.open(base + encodeURIComponent(key), '_blank');
         }
 
-        // 批量删除相关
+        // 批量删除
         function updateBatchDeleteButton() {
             let checked = document.querySelectorAll('.row-checkbox:checked').length;
             batchDeleteBtn.style.display = checked > 0 ? 'inline-flex' : 'none';
             batchDeleteBtn.innerText = `🗑️ 批量删除 (${checked})`;
         }
-
         function updateSelectAllCheckbox() {
             let checkboxes = document.querySelectorAll('.row-checkbox');
             if (checkboxes.length === 0) { selectAllChk.checked = false; return; }
             let allChecked = Array.from(checkboxes).every(cb => cb.checked);
             selectAllChk.checked = allChecked;
         }
-
         function getSelectedIds() {
             return Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.getAttribute('data-id')));
         }
-
         function batchDelete() {
             let ids = getSelectedIds();
             if (!ids.length) return;
@@ -511,7 +532,6 @@
                 showToast(`已删除 ${ids.length} 个需求`);
             }
         }
-
         function deleteSingleRequirement(id) {
             if (confirm('删除该需求？')) {
                 requirements = requirements.filter(r => r.id !== id);
@@ -522,7 +542,7 @@
             }
         }
 
-        // ---------- 弹窗核心函数（稳定版）----------
+        // 弹窗逻辑
         function openReqModal(isEdit = false, reqData = null) {
             if (isEdit && reqData) {
                 modalTitle.innerText = '编辑需求';
@@ -531,6 +551,7 @@
                 modalHospital.value = reqData.hospital || '';
                 modalDueDate.value = reqData.dueDate || '';
                 modalPriority.value = reqData.priority || '中';
+                modalStatus.value = reqData.status || '未完成';
                 modalDesc.value = reqData.description || '';
                 currentEditId = reqData.id;
             } else {
@@ -540,6 +561,7 @@
                 modalHospital.value = '';
                 modalDueDate.value = '';
                 modalPriority.value = '中';
+                modalStatus.value = '未完成';
                 modalDesc.value = '';
                 currentEditId = null;
             }
@@ -547,13 +569,11 @@
             document.body.style.overflow = 'hidden';
             setTimeout(() => modalJiraKey.focus(), 50);
         }
-
         function closeReqModal() {
             reqModal.classList.remove('active');
             document.body.style.overflow = '';
             currentEditId = null;
         }
-
         function saveReqFromModal() {
             let rawJira = modalJiraKey.value.trim();
             if (!rawJira) { showToast('请填写Jira编号或完整URL', true); return; }
@@ -572,7 +592,7 @@
             let dueDate = modalDueDate.value;
             if (!dueDate) dueDate = new Date().toISOString().slice(0,10);
             let priority = modalPriority.value;
-
+            let status = modalStatus.value;
             const isUnique = (key, excludeId) => !requirements.some(r => r.jiraKey === key && r.id !== excludeId);
             if (currentEditId !== null) {
                 let idx = requirements.findIndex(r => r.id === currentEditId);
@@ -580,7 +600,7 @@
                     if (requirements[idx].jiraKey !== jiraKey && !isUnique(jiraKey, currentEditId)) {
                         showToast('Jira编号已存在', true); return;
                     }
-                    requirements[idx] = { ...requirements[idx], jiraKey, name, hospital, description, dueDate, priority };
+                    requirements[idx] = { ...requirements[idx], jiraKey, name, hospital, description, dueDate, priority, status };
                     saveToLocalStorage();
                     closeReqModal();
                     refreshView();
@@ -588,7 +608,7 @@
             } else {
                 if (!isUnique(jiraKey, null)) { showToast('Jira编号已存在', true); return; }
                 let newId = Date.now();
-                requirements.push({ id: newId, jiraKey, name, hospital, description, dueDate, priority });
+                requirements.push({ id: newId, jiraKey, name, hospital, description, dueDate, priority, status });
                 saveToLocalStorage();
                 closeReqModal();
                 refreshView();
@@ -601,32 +621,11 @@
             if (req) openReqModal(true, req);
         }
 
-        // Jira设置弹窗
-        function openJiraSettingsModal() {
-            jiraBaseUrlInput.value = jiraBaseUrl;
-            jiraSettingsModal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-        function closeJiraSettingsModal() {
-            jiraSettingsModal.classList.remove('active');
-            document.body.style.overflow = '';
-        }
-        function saveJiraUrl() {
-            let newUrl = jiraBaseUrlInput.value.trim();
-            if (newUrl && !newUrl.endsWith('/')) newUrl += '/';
-            if (newUrl) {
-                jiraBaseUrl = newUrl;
-                localStorage.setItem('jiraBaseUrl', jiraBaseUrl);
-                showToast('Jira基础地址已保存');
-                closeJiraSettingsModal();
-            } else showToast('无效地址', true);
-        }
-
-        // ---------- 刷新表格 ----------
+        // 刷新表格视图（基于过滤排序后的数据）
         function refreshView() {
-            let filtered = getFiltered();
-            if (!filtered.length) {
-                tableBody.innerHTML = '<tr class="empty-row"><td colspan="9">暂无需求</td></tr>';
+            let displayList = getDisplayList();
+            if (!displayList.length) {
+                tableBody.innerHTML = '<tr class="empty-row"><td colspan="10">暂无需求</td></tr>';
                 initSortable();
                 updateStats();
                 updateBatchDeleteButton();
@@ -634,21 +633,23 @@
                 return;
             }
             let html = '';
-            for (let req of filtered) {
+            for (let req of displayList) {
+                const statusClass = req.status === '已完成' ? 'status-done' : (req.status === '研发中' ? 'status-dev' : 'status-pending');
+                const statusText = req.status || '未完成';
                 html += `<tr data-id="${req.id}">
                     <td class="checkbox-col"><input type="checkbox" class="row-checkbox" data-id="${req.id}"></td>
                     <td class="drag-handle" style="cursor:grab; text-align:center;">⋮⋮</td>
                     <td><span class="jira-link" data-jira-key="${escapeAttr(req.jiraKey)}">${escapeHtml(req.jiraKey)}</span></td>
-                    <td>${escapeHtml(req.name)}</td>
-                    <td><span class="hospital-badge">${escapeHtml(req.hospital)}</span></td>
-                    <td>${escapeHtml(req.description || '—')}</td>
+                    <td title="${escapeHtml(req.name)}">${escapeHtml(req.name)}</td>
+                    <td><span class="hospital-badge" title="${escapeHtml(req.hospital)}">${escapeHtml(req.hospital)}</span></td>
+                    <td title="${escapeHtml(req.description || '—')}">${escapeHtml(req.description || '—')}</td>
                     <td>${escapeHtml(req.dueDate || '未设置')}</td>
                     <td><span class="priority-badge priority-${req.priority === '高' ? 'high' : (req.priority === '中' ? 'medium' : 'low')}">${escapeHtml(req.priority)}</span></td>
+                    <td><span class="status-badge ${statusClass}">${escapeHtml(statusText)}</span></td>
                     <td><button type="button" class="edit-icon" data-id="${req.id}">编辑</button> <button type="button" class="delete-icon" data-id="${req.id}">删除</button></td>
                 </tr>`;
             }
             tableBody.innerHTML = html;
-            // 复选框事件
             document.querySelectorAll('.row-checkbox').forEach(cb => {
                 cb.removeEventListener('change', checkboxChangeHandler);
                 cb.addEventListener('change', checkboxChangeHandler);
@@ -664,7 +665,7 @@
             updateSelectAllCheckbox();
         }
 
-        // 全局事件委托（稳定处理动态元素）
+        // 全局委托
         function globalClickHandler(e) {
             const target = e.target;
             if (target.classList.contains('jira-link')) {
@@ -679,7 +680,7 @@
             }
         }
 
-        // 拖拽排序
+        // 拖拽排序 (拖拽后清除排序状态)
         function initSortable() {
             if (sortableInstance) sortableInstance.destroy();
             let tbody = document.getElementById('reqTableBody');
@@ -688,28 +689,42 @@
                 handle: '.drag-handle',
                 animation: 200,
                 onEnd: () => {
+                    // 拖拽后清除排序状态，保存新的顺序到 requirements
                     let ids = [...tbody.querySelectorAll('tr')].map(tr => parseInt(tr.getAttribute('data-id'))).filter(id => !isNaN(id));
-                    if (ids.length !== getFiltered().length) return;
+                    let displayList = getDisplayList();
+                    if (ids.length !== displayList.length) return;
                     let map = new Map(requirements.map(r => [r.id, r]));
                     let newOrder = ids.map(id => map.get(id)).filter(r => r);
-                    if (currentFilterHospital === '__ALL__') {
-                        requirements = newOrder;
-                    } else {
-                        let newReqs = [];
-                        let idx = 0;
-                        for (let r of requirements) {
-                            if (r.hospital === currentFilterHospital) newReqs.push(newOrder[idx++]);
-                            else newReqs.push(r);
-                        }
-                        requirements = newReqs;
+                    // 需要将所有需求重新排序 (保持全局顺序)
+                    let newRequirements = [];
+                    for (let req of requirements) {
+                        if (newOrder.includes(req)) continue;
+                        newRequirements.push(req);
                     }
+                    newRequirements = [...newOrder, ...newRequirements];
+                    requirements = newRequirements;
+                    sortField = null;   // 清除排序
+                    sortDirection = "asc";
+                    globalSearchInput.value = "";
+                    globalKeyword = "";
                     saveToLocalStorage();
                     refreshView();
                 }
             });
         }
 
-        // Word导入
+        // 排序处理
+        function handleSort(field) {
+            if (sortField === field) {
+                sortDirection = sortDirection === "asc" ? "desc" : "asc";
+            } else {
+                sortField = field;
+                sortDirection = "asc";
+            }
+            refreshView();
+        }
+
+        // 导入Word
         async function importWord(file) {
             try {
                 let ab = await file.arrayBuffer();
@@ -739,7 +754,7 @@
                     let desc = get(idx.desc);
                     let jiraKey = `IMPORT-${Date.now()}-${i}`;
                     while (requirements.some(r => r.jiraKey === jiraKey)) jiraKey = `IMPORT-${Date.now()}-${i}-${Math.random()}`;
-                    newReqs.push({ id: Date.now()+i, jiraKey, name, hospital, description: desc, dueDate: today, priority: '中' });
+                    newReqs.push({ id: Date.now()+i, jiraKey, name, hospital, description: desc, dueDate: today, priority: '中', status: '未完成' });
                 }
                 if (!newReqs.length) { showToast('未解析到有效数据', true); return; }
                 requirements.push(...newReqs);
@@ -749,7 +764,6 @@
             } catch(e) { showToast('解析Word失败', true); console.error(e); }
         }
 
-        // 加载本地数据
         function loadFromStorage() {
             let stored = localStorage.getItem('requirementsSystem');
             if (stored) {
@@ -762,9 +776,9 @@
                 let today = new Date().toISOString().slice(0,10);
                 let nextWeek = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
                 requirements = [
-                    { id:1001, jiraKey:"HEALTH-101", name:"智慧门诊系统", hospital:"市第一人民医院", description:"升级智能分诊", dueDate:nextWeek, priority:"高" },
-                    { id:1002, jiraKey:"HEALTH-102", name:"住院病历电子化", hospital:"仁爱医院", description:"无纸化病历", dueDate:today, priority:"中" },
-                    { id:1003, jiraKey:"HEALTH-103", name:"药房库存预警", hospital:"中心医院", description:"低库存预警", dueDate:"2026-06-15", priority:"高" }
+                    { id:1001, jiraKey:"HEALTH-101", name:"智慧门诊系统", hospital:"市第一人民医院", description:"升级智能分诊", dueDate:nextWeek, priority:"高", status:"研发中" },
+                    { id:1002, jiraKey:"HEALTH-102", name:"住院病历电子化", hospital:"仁爱医院", description:"无纸化病历", dueDate:today, priority:"中", status:"未完成" },
+                    { id:1003, jiraKey:"HEALTH-103", name:"药房库存预警", hospital:"中心医院", description:"低库存预警", dueDate:"2026-06-15", priority:"高", status:"已完成" }
                 ];
                 saveToLocalStorage();
             }
@@ -773,21 +787,36 @@
                 if (!r.jiraKey) { r.jiraKey = `MIG-${r.id}`; needFix=true; }
                 if (!r.hospital) { r.hospital="未指定医院"; needFix=true; }
                 if (!r.dueDate) { r.dueDate = new Date().toISOString().slice(0,10); needFix=true; }
+                if (!r.status) { r.status = "未完成"; needFix=true; }
             }
             if (needFix) saveToLocalStorage();
         }
 
         function loadJiraUrl() {
             let stored = localStorage.getItem('jiraBaseUrl');
-            if (stored) {
-                jiraBaseUrl = stored;
-                jiraBaseUrlInput.value = stored;
-            } else {
-                jiraBaseUrlInput.value = jiraBaseUrl;
-            }
+            if (stored) { jiraBaseUrl = stored; jiraBaseUrlInput.value = stored; }
+            else jiraBaseUrlInput.value = jiraBaseUrl;
+        }
+        function openJiraSettingsModal() {
+            jiraBaseUrlInput.value = jiraBaseUrl;
+            jiraSettingsModal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeJiraSettingsModal() {
+            jiraSettingsModal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        function saveJiraUrl() {
+            let newUrl = jiraBaseUrlInput.value.trim();
+            if (newUrl && !newUrl.endsWith('/')) newUrl += '/';
+            if (newUrl) {
+                jiraBaseUrl = newUrl;
+                localStorage.setItem('jiraBaseUrl', jiraBaseUrl);
+                showToast('Jira基础地址已保存');
+                closeJiraSettingsModal();
+            } else showToast('无效地址', true);
         }
 
-        // 绑定UI事件
         function bindEvents() {
             openAddModalBtn.onclick = () => openReqModal(false);
             batchDeleteBtn.onclick = batchDelete;
@@ -803,6 +832,11 @@
                 document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = isChecked);
                 updateBatchDeleteButton();
             };
+            globalSearchInput.oninput = (e) => { globalKeyword = e.target.value; refreshView(); };
+            // 表头排序
+            document.querySelectorAll('.req-table th[data-sort]').forEach(th => {
+                th.onclick = () => { handleSort(th.getAttribute('data-sort')); };
+            });
             modalSaveBtn.onclick = saveReqFromModal;
             modalCancelBtn.onclick = closeReqModal;
             closeModalBtn.onclick = closeReqModal;
@@ -812,7 +846,6 @@
             cancelJiraSettingsBtn.onclick = closeJiraSettingsModal;
             closeJiraSettingsBtn.onclick = closeJiraSettingsModal;
             jiraSettingsModal.onclick = (e) => { if (e.target === jiraSettingsModal) closeJiraSettingsModal(); };
-            // ESC关闭弹窗
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
                     if (reqModal.classList.contains('active')) closeReqModal();
