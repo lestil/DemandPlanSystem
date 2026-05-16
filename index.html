@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>需求管理系统 - 状态管理 | 排序过滤 | Jira集成</title>
+    <title>需求管理系统 · 云端同步版</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -107,6 +108,14 @@
             background: #f1f5f9;
             color: #1e293b;
         }
+        .btn-outline {
+            background: white;
+            border: 1px solid #cbd5e1;
+            color: #334155;
+        }
+        .btn-outline:hover {
+            background: #f8fafc;
+        }
         .hospital-select {
             padding: 0.4rem 1rem;
             border-radius: 40px;
@@ -125,6 +134,13 @@
             border: 1px solid #cbd5e1;
             width: 220px;
             font-size: 0.8rem;
+        }
+        .data-hint {
+            font-size: 0.7rem;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 0.2rem 0.8rem;
+            border-radius: 30px;
         }
         .table-wrapper {
             overflow-x: auto;
@@ -161,14 +177,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        /* 特定列宽控制 */
-        .req-table th:nth-child(2), .req-table td:nth-child(2) { max-width: 90px; width: 90px; } /* Jira编号 */
-        .req-table th:nth-child(3), .req-table td:nth-child(3) { min-width: 140px; max-width: 180px; } /* 需求名称 */
-        .req-table th:nth-child(4), .req-table td:nth-child(4) { min-width: 120px; max-width: 160px; } /* 项目医院 */
-        .req-table th:nth-child(5), .req-table td:nth-child(5) { min-width: 150px; max-width: 220px; } /* 需求描述 */
-        .req-table th:nth-child(6), .req-table td:nth-child(6) { width: 110px; } /* 预计完成时间 */
-        .req-table th:nth-child(7), .req-table td:nth-child(7) { width: 80px; } /* 优先级 */
-        .req-table th:nth-child(8), .req-table td:nth-child(8) { width: 90px; } /* 状态 */
+        .req-table th:nth-child(3), .req-table td:nth-child(3) { max-width: 90px; width: 90px; }
         .drag-handle {
             cursor: grab;
             font-size: 1.3rem;
@@ -206,7 +215,6 @@
         .empty-row td { text-align: center; padding: 3rem; color: #94a3b8; }
         footer { text-align: center; margin-top: 2rem; color: #6c86a3; font-size: 0.75rem; }
 
-        /* 弹窗样式 */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -227,14 +235,7 @@
             transition: transform 0.2s;
         }
         .modal-overlay.active .modal-container { transform: scale(1); }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            font-size: 1.4rem;
-            font-weight: 600;
-        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; font-size: 1.4rem; font-weight: 600; }
         .modal-close { background: none; border: none; font-size: 1.8rem; cursor: pointer; color: #64748b; }
         .modal-form .form-grid { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
         .modal-form .field-group { flex: 1; min-width: 160px; }
@@ -245,13 +246,14 @@
         .select-all-checkbox { transform: scale(1.1); cursor: pointer; }
         .jira-settings-modal .modal-container { max-width: 480px; }
         .jira-url-input { width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 16px; font-size: 0.9rem; }
+        input[type="file"] { display: none; }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <div><h1>🏥 需求排期 · Jira集成</h1><div class="sub">✨ 状态跟踪 · 排序过滤 · 拖拽排序</div></div>
-        <div class="info-note">⚡ 按住「⋮⋮」拖动行调整顺序</div>
+        <div><h1>🏥 需求排期 · 云端同步</h1><div class="sub">✨ 多端实时同步 · Supabase 驱动</div></div>
+        <div class="info-note">⚡ 按住「⋮⋮」拖动行调整顺序（自动同步）</div>
     </div>
 
     <div class="card">
@@ -260,15 +262,16 @@
             <select id="hospitalFilterSelect" class="hospital-select"><option value="__ALL__">全部医院</option></select>
             <span class="filter-stats" id="filterStats"></span>
             <div style="flex:1"></div>
-            <button type="button" class="btn btn-secondary" id="openJiraSettingsBtn">⚙️ Jira地址设置</button>
+            <span class="data-hint">☁️ 数据已云端存储，任何浏览器修改实时同步</span>
+            <button type="button" class="btn btn-secondary" id="openJiraSettingsBtn">⚙️ Jira地址</button>
         </div>
         <div class="toolbar">
             <button type="button" class="btn btn-primary" id="openAddModalBtn">➕ 新增需求</button>
             <button type="button" class="btn btn-danger" id="batchDeleteBtn" style="display: none;">🗑️ 批量删除</button>
-            <button type="button" class="btn btn-accent" id="importWordBtn">📄 导入Word需求书</button>
+            <button type="button" class="btn btn-accent" id="importWordBtn">📄 导入Word</button>
             <input type="file" id="wordFileInput" accept=".docx" style="display:none;">
-            <input type="text" id="globalSearchInput" class="search-input" placeholder="🔍 全局搜索 (编号/名称/医院/描述)">
-            <span class="filter-stats">💡 点击表头排序，再次点击反向排序</span>
+            <input type="text" id="globalSearchInput" class="search-input" placeholder="🔍 全局搜索">
+            <span class="filter-stats">💡 点击表头排序</span>
         </div>
         <div class="table-wrapper">
             <table class="req-table">
@@ -276,26 +279,25 @@
                     <tr>
                         <th class="checkbox-col"><input type="checkbox" id="selectAllCheckbox" class="select-all-checkbox"></th>
                         <th style="width:44px;">排序</th>
-                        <th data-sort="jiraKey">Jira编号 <span class="sort-icon">↕️</span></th>
+                        <th data-sort="jira_key">Jira编号 <span class="sort-icon">↕️</span></th>
                         <th data-sort="name">需求名称 <span class="sort-icon">↕️</span></th>
                         <th data-sort="hospital">项目医院 <span class="sort-icon">↕️</span></th>
                         <th data-sort="description">需求描述 <span class="sort-icon">↕️</span></th>
-                        <th data-sort="dueDate">预计完成时间 <span class="sort-icon">↕️</span></th>
+                        <th data-sort="due_date">预计完成时间 <span class="sort-icon">↕️</span></th>
                         <th data-sort="priority">优先级 <span class="sort-icon">↕️</span></th>
                         <th data-sort="status">状态 <span class="sort-icon">↕️</span></th>
                         <th style="width:100px;">操作</th>
                     </tr>
                 </thead>
                 <tbody id="reqTableBody">
-                    <tr class="empty-row"><td colspan="10">加载中...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <footer>🧩 数据持久化localStorage · 状态管理 · 全局搜索+表头排序 · 拖拽排序 · Word导入自动识别三字段 · 批量删除</footer>
-</div>
+                    <tr class="empty-row"><td colspan="10">加载中...<\/tr><\/tbody>
+            <\/table>
+        <\/div>
+    <\/div>
+    <footer>💡 所有数据存储在 Supabase 云端，不同浏览器/设备访问同一项目将自动同步。首次使用需执行建表 SQL（见代码注释或提示）。<\/footer>
+<\/div>
 
-<!-- 新增/编辑需求弹窗 -->
+<!-- 弹窗 -->
 <div id="reqModal" class="modal-overlay">
     <div class="modal-container">
         <div class="modal-header">
@@ -354,7 +356,6 @@
     </div>
 </div>
 
-<!-- Jira基础地址设置弹窗 -->
 <div id="jiraSettingsModal" class="modal-overlay jira-settings-modal">
     <div class="modal-container">
         <div class="modal-header">
@@ -375,498 +376,494 @@
 <div id="toastMsg" class="toast-msg"></div>
 
 <script>
-    (function() {
-        let requirements = [];
-        let currentEditId = null;
-        let currentFilterHospital = "__ALL__";
-        let sortableInstance = null;
-        let jiraBaseUrl = "https://jira.atlassian.net/browse/";
-        let sortField = null;      // 排序字段
-        let sortDirection = "asc"; // asc 或 desc
-        let globalKeyword = "";    // 全局搜索关键词
+    // ================= Supabase 配置（已填写） =================
+    const SUPABASE_URL = "https://wphlaqwpvgwozvvqamsp.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ODo2XlF5kA7Amtz22I19-w_DMKGM7y9";
+    // ========================================================
 
-        // DOM 元素
-        const hospitalFilter = document.getElementById('hospitalFilterSelect');
-        const filterStats = document.getElementById('filterStats');
-        const tableBody = document.getElementById('reqTableBody');
-        const openAddModalBtn = document.getElementById('openAddModalBtn');
-        const batchDeleteBtn = document.getElementById('batchDeleteBtn');
-        const importWordBtn = document.getElementById('importWordBtn');
-        const wordFileInput = document.getElementById('wordFileInput');
-        const selectAllChk = document.getElementById('selectAllCheckbox');
-        const toast = document.getElementById('toastMsg');
-        const openJiraSettingsBtn = document.getElementById('openJiraSettingsBtn');
-        const globalSearchInput = document.getElementById('globalSearchInput');
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+    const TABLE_NAME = "requirements";
 
-        // 弹窗元素
-        const reqModal = document.getElementById('reqModal');
-        const modalTitle = document.getElementById('modalTitle');
-        const modalJiraKey = document.getElementById('modalJiraKey');
-        const modalName = document.getElementById('modalName');
-        const modalHospital = document.getElementById('modalHospital');
-        const modalHospitalDatalist = document.getElementById('modalHospitalDatalist');
-        const modalDueDate = document.getElementById('modalDueDate');
-        const modalPriority = document.getElementById('modalPriority');
-        const modalStatus = document.getElementById('modalStatus');
-        const modalDesc = document.getElementById('modalDesc');
-        const modalSaveBtn = document.getElementById('modalSaveBtn');
-        const modalCancelBtn = document.getElementById('modalCancelBtn');
-        const closeModalBtn = document.getElementById('closeModalBtn');
+    let requirements = [];
+    let currentEditId = null;
+    let currentFilterHospital = "__ALL__";
+    let sortableInstance = null;
+    let jiraBaseUrl = localStorage.getItem('jiraBaseUrl') || "https://jira.atlassian.net/browse/";
+    let sortField = null;
+    let sortDirection = "asc";
+    let globalKeyword = "";
 
-        const jiraSettingsModal = document.getElementById('jiraSettingsModal');
-        const jiraBaseUrlInput = document.getElementById('jiraBaseUrlInput');
-        const saveJiraSettingsBtn = document.getElementById('saveJiraSettingsBtn');
-        const cancelJiraSettingsBtn = document.getElementById('cancelJiraSettingsBtn');
-        const closeJiraSettingsBtn = document.getElementById('closeJiraSettingsBtn');
+    // DOM 元素
+    const hospitalFilter = document.getElementById('hospitalFilterSelect');
+    const filterStats = document.getElementById('filterStats');
+    const tableBody = document.getElementById('reqTableBody');
+    const openAddModalBtn = document.getElementById('openAddModalBtn');
+    const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+    const importWordBtn = document.getElementById('importWordBtn');
+    const wordFileInput = document.getElementById('wordFileInput');
+    const selectAllChk = document.getElementById('selectAllCheckbox');
+    const toast = document.getElementById('toastMsg');
+    const openJiraSettingsBtn = document.getElementById('openJiraSettingsBtn');
+    const globalSearchInput = document.getElementById('globalSearchInput');
+    const modal = document.getElementById('reqModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalJiraKey = document.getElementById('modalJiraKey');
+    const modalName = document.getElementById('modalName');
+    const modalHospital = document.getElementById('modalHospital');
+    const modalHospitalDatalist = document.getElementById('modalHospitalDatalist');
+    const modalDueDate = document.getElementById('modalDueDate');
+    const modalPriority = document.getElementById('modalPriority');
+    const modalStatus = document.getElementById('modalStatus');
+    const modalDesc = document.getElementById('modalDesc');
+    const modalSaveBtn = document.getElementById('modalSaveBtn');
+    const modalCancelBtn = document.getElementById('modalCancelBtn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const jiraSettingsModal = document.getElementById('jiraSettingsModal');
+    const jiraBaseUrlInput = document.getElementById('jiraBaseUrlInput');
+    const saveJiraSettingsBtn = document.getElementById('saveJiraSettingsBtn');
+    const cancelJiraSettingsBtn = document.getElementById('cancelJiraSettingsBtn');
+    const closeJiraSettingsBtn = document.getElementById('closeJiraSettingsBtn');
 
-        function showToast(msg, isErr) {
-            toast.innerText = msg;
-            toast.style.display = 'block';
-            toast.style.background = isErr ? '#b91c1c' : '#1f2937';
-            setTimeout(() => toast.style.display = 'none', 3000);
-        }
+    function showToast(msg, isErr) {
+        toast.innerText = msg;
+        toast.style.display = 'block';
+        toast.style.background = isErr ? '#b91c1c' : '#1f2937';
+        setTimeout(() => toast.style.display = 'none', 3000);
+    }
 
-        function saveToLocalStorage() {
-            localStorage.setItem('requirementsSystem', JSON.stringify(requirements));
+    // 从云端加载数据
+    async function loadFromCloud() {
+        try {
+            const { data, error } = await supabase
+                .from(TABLE_NAME)
+                .select('*')
+                .order('order_index', { ascending: true, nullsFirst: false });
+            if (error) {
+                if (error.message.includes('relation') && error.message.includes('does not exist')) {
+                    showToast('数据表不存在，请先在 Supabase SQL 编辑器中执行建表语句（见代码注释）', true);
+                } else {
+                    showToast('加载失败: ' + error.message, true);
+                }
+                requirements = [];
+            } else {
+                requirements = data || [];
+            }
             updateFilterOptions();
             refreshView();
+        } catch(e) {
+            console.error(e);
+            showToast('网络错误', true);
         }
+    }
 
-        function getAllHospitals() {
-            return [...new Set(requirements.map(r => r.hospital).filter(h => h && h.trim()))].sort();
+    // 新增或更新单条记录
+    async function upsertRequirement(req, isNew) {
+        let result;
+        if (isNew) {
+            result = await supabase.from(TABLE_NAME).insert([req]);
+        } else {
+            result = await supabase.from(TABLE_NAME).update(req).eq('id', req.id);
         }
+        if (result.error) throw result.error;
+        await loadFromCloud();
+        return true;
+    }
 
-        function updateFilterOptions() {
-            let hospitals = getAllHospitals();
-            let html = '<option value="__ALL__">全部医院</option>';
-            for (let h of hospitals) html += `<option value="${escapeAttr(h)}">${escapeHtml(h)}</option>`;
-            hospitalFilter.innerHTML = html;
-            hospitalFilter.value = currentFilterHospital;
-            let datalistHtml = '';
-            for (let h of hospitals) datalistHtml += `<option value="${escapeAttr(h)}">`;
-            modalHospitalDatalist.innerHTML = datalistHtml;
+    // 批量删除
+    async function deleteFromCloud(ids) {
+        const { error } = await supabase.from(TABLE_NAME).delete().in('id', ids);
+        if (error) throw error;
+        await loadFromCloud();
+    }
+
+    // 更新排序字段
+    async function updateOrderInCloud(orderMap) {
+        for (let [id, orderIdx] of Object.entries(orderMap)) {
+            await supabase.from(TABLE_NAME).update({ order_index: orderIdx }).eq('id', parseInt(id));
         }
+        await loadFromCloud();
+    }
 
-        // 核心：获取过滤+排序后的数据（用于展示）
-        function getDisplayList() {
-            let filtered = requirements.filter(item => {
-                if (currentFilterHospital !== "__ALL__" && item.hospital !== currentFilterHospital) return false;
-                if (globalKeyword.trim() !== "") {
-                    const kw = globalKeyword.trim().toLowerCase();
-                    return (item.jiraKey && item.jiraKey.toLowerCase().includes(kw)) ||
-                           (item.name && item.name.toLowerCase().includes(kw)) ||
-                           (item.hospital && item.hospital.toLowerCase().includes(kw)) ||
-                           (item.description && item.description.toLowerCase().includes(kw));
+    function getAllHospitals() {
+        return [...new Set(requirements.map(r => r.hospital).filter(h => h && h.trim()))].sort();
+    }
+
+    function updateFilterOptions() {
+        let hospitals = getAllHospitals();
+        let html = '<option value="__ALL__">全部医院</option>';
+        for (let h of hospitals) html += `<option value="${escapeAttr(h)}">${escapeHtml(h)}</option>`;
+        hospitalFilter.innerHTML = html;
+        hospitalFilter.value = currentFilterHospital;
+        let datalistHtml = '';
+        for (let h of hospitals) datalistHtml += `<option value="${escapeAttr(h)}">`;
+        modalHospitalDatalist.innerHTML = datalistHtml;
+    }
+
+    function getDisplayList() {
+        let filtered = requirements.filter(item => {
+            if (currentFilterHospital !== "__ALL__" && item.hospital !== currentFilterHospital) return false;
+            if (globalKeyword.trim() !== "") {
+                const kw = globalKeyword.trim().toLowerCase();
+                return (item.jira_key && item.jira_key.toLowerCase().includes(kw)) ||
+                       (item.name && item.name.toLowerCase().includes(kw)) ||
+                       (item.hospital && item.hospital.toLowerCase().includes(kw)) ||
+                       (item.description && item.description.toLowerCase().includes(kw));
+            }
+            return true;
+        });
+        if (sortField) {
+            filtered.sort((a, b) => {
+                let valA = a[sortField] || "";
+                let valB = b[sortField] || "";
+                if (sortField === "due_date") {
+                    valA = valA || "9999-12-31";
+                    valB = valB || "9999-12-31";
                 }
-                return true;
+                if (typeof valA === "string") valA = valA.toLowerCase();
+                if (typeof valB === "string") valB = valB.toLowerCase();
+                if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+                if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+                return 0;
             });
-            if (sortField) {
-                filtered.sort((a, b) => {
-                    let valA = a[sortField] || "";
-                    let valB = b[sortField] || "";
-                    if (sortField === "dueDate") {
-                        valA = valA || "9999-12-31";
-                        valB = valB || "9999-12-31";
-                    }
-                    if (typeof valA === "string") valA = valA.toLowerCase();
-                    if (typeof valB === "string") valB = valB.toLowerCase();
-                    if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-                    if (valA > valB) return sortDirection === "asc" ? 1 : -1;
-                    return 0;
-                });
-            }
-            return filtered;
         }
+        return filtered;
+    }
 
-        function updateStats() {
-            let displayList = getDisplayList();
-            filterStats.innerText = currentFilterHospital === '__ALL__' ? `共 ${requirements.length} 个需求，当前显示 ${displayList.length}` : `「${currentFilterHospital}」下 ${displayList.length} 个 / 总计 ${requirements.length}`;
-        }
+    function updateStats() {
+        let total = requirements.length, filteredCount = getDisplayList().length;
+        filterStats.innerText = currentFilterHospital === '__ALL__' ? `共 ${total} 个需求，当前显示 ${filteredCount}` : `「${currentFilterHospital}」下 ${filteredCount} 个 / 总计 ${total}`;
+    }
 
-        function smartExtractJira(inputStr) {
-            let trimmed = inputStr.trim();
-            if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-                try {
-                    let url = new URL(trimmed);
-                    let path = url.pathname;
-                    let lastSlash = path.lastIndexOf('/');
-                    let key = lastSlash !== -1 ? path.substring(lastSlash + 1) : path;
-                    if (key.includes('?')) key = key.split('?')[0];
-                    if (key.includes('#')) key = key.split('#')[0];
-                    let baseUrl = trimmed.substring(0, trimmed.lastIndexOf(key));
-                    return { key, base: baseUrl };
-                } catch(e) { return { key: trimmed, base: null }; }
-            }
-            return { key: trimmed, base: null };
+    function smartExtractJira(inputStr) {
+        let trimmed = inputStr.trim();
+        if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+            try {
+                let url = new URL(trimmed);
+                let path = url.pathname;
+                let lastSlash = path.lastIndexOf('/');
+                let key = lastSlash !== -1 ? path.substring(lastSlash + 1) : path;
+                if (key.includes('?')) key = key.split('?')[0];
+                if (key.includes('#')) key = key.split('#')[0];
+                let baseUrl = trimmed.substring(0, trimmed.lastIndexOf(key));
+                return { key, base: baseUrl };
+            } catch(e) { return { key: trimmed, base: null }; }
         }
+        return { key: trimmed, base: null };
+    }
 
-        function openJira(key) {
-            if (!key) return;
-            let base = jiraBaseUrl.endsWith('/') ? jiraBaseUrl : jiraBaseUrl + '/';
-            window.open(base + encodeURIComponent(key), '_blank');
-        }
+    function openJira(key) {
+        if (!key) return;
+        let base = jiraBaseUrl.endsWith('/') ? jiraBaseUrl : jiraBaseUrl + '/';
+        window.open(base + encodeURIComponent(key), '_blank');
+    }
 
-        // 批量删除
-        function updateBatchDeleteButton() {
-            let checked = document.querySelectorAll('.row-checkbox:checked').length;
-            batchDeleteBtn.style.display = checked > 0 ? 'inline-flex' : 'none';
-            batchDeleteBtn.innerText = `🗑️ 批量删除 (${checked})`;
+    // 批量删除 UI
+    function updateBatchDeleteButton() {
+        let checked = document.querySelectorAll('.row-checkbox:checked').length;
+        batchDeleteBtn.style.display = checked > 0 ? 'inline-flex' : 'none';
+        batchDeleteBtn.innerText = `🗑️ 批量删除 (${checked})`;
+    }
+    function updateSelectAllCheckbox() {
+        let checkboxes = document.querySelectorAll('.row-checkbox');
+        if (checkboxes.length === 0) { selectAllChk.checked = false; return; }
+        let allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        selectAllChk.checked = allChecked;
+    }
+    function getSelectedIds() {
+        return Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.getAttribute('data-id')));
+    }
+    async function batchDelete() {
+        let ids = getSelectedIds();
+        if (!ids.length) return;
+        if (confirm(`确定删除 ${ids.length} 个需求吗？`)) {
+            await deleteFromCloud(ids);
+            if (currentEditId && ids.includes(currentEditId)) currentEditId = null;
+            showToast(`已删除 ${ids.length} 个需求`);
         }
-        function updateSelectAllCheckbox() {
-            let checkboxes = document.querySelectorAll('.row-checkbox');
-            if (checkboxes.length === 0) { selectAllChk.checked = false; return; }
-            let allChecked = Array.from(checkboxes).every(cb => cb.checked);
-            selectAllChk.checked = allChecked;
+    }
+    async function deleteSingleRequirement(id) {
+        if (confirm('删除该需求？')) {
+            await deleteFromCloud([id]);
+            if (currentEditId === id) currentEditId = null;
+            showToast('已删除');
         }
-        function getSelectedIds() {
-            return Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.getAttribute('data-id')));
-        }
-        function batchDelete() {
-            let ids = getSelectedIds();
-            if (!ids.length) return;
-            if (confirm(`确定删除 ${ids.length} 个需求吗？`)) {
-                requirements = requirements.filter(r => !ids.includes(r.id));
-                if (currentEditId && ids.includes(currentEditId)) currentEditId = null;
-                saveToLocalStorage();
-                refreshView();
-                showToast(`已删除 ${ids.length} 个需求`);
-            }
-        }
-        function deleteSingleRequirement(id) {
-            if (confirm('删除该需求？')) {
-                requirements = requirements.filter(r => r.id !== id);
-                if (currentEditId === id) currentEditId = null;
-                saveToLocalStorage();
-                refreshView();
-                showToast('已删除');
-            }
-        }
+    }
 
-        // 弹窗逻辑
-        function openReqModal(isEdit = false, reqData = null) {
-            if (isEdit && reqData) {
-                modalTitle.innerText = '编辑需求';
-                modalJiraKey.value = reqData.jiraKey || '';
-                modalName.value = reqData.name || '';
-                modalHospital.value = reqData.hospital || '';
-                modalDueDate.value = reqData.dueDate || '';
-                modalPriority.value = reqData.priority || '中';
-                modalStatus.value = reqData.status || '未完成';
-                modalDesc.value = reqData.description || '';
-                currentEditId = reqData.id;
-            } else {
-                modalTitle.innerText = '新增需求';
-                modalJiraKey.value = '';
-                modalName.value = '';
-                modalHospital.value = '';
-                modalDueDate.value = '';
-                modalPriority.value = '中';
-                modalStatus.value = '未完成';
-                modalDesc.value = '';
-                currentEditId = null;
-            }
-            reqModal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-            setTimeout(() => modalJiraKey.focus(), 50);
-        }
-        function closeReqModal() {
-            reqModal.classList.remove('active');
-            document.body.style.overflow = '';
+    // 弹窗逻辑
+    function openReqModal(isEdit = false, reqData = null) {
+        if (isEdit && reqData) {
+            modalTitle.innerText = '编辑需求';
+            modalJiraKey.value = reqData.jira_key || '';
+            modalName.value = reqData.name || '';
+            modalHospital.value = reqData.hospital || '';
+            modalDueDate.value = reqData.due_date || '';
+            modalPriority.value = reqData.priority || '中';
+            modalStatus.value = reqData.status || '未完成';
+            modalDesc.value = reqData.description || '';
+            currentEditId = reqData.id;
+        } else {
+            modalTitle.innerText = '新增需求';
+            modalJiraKey.value = '';
+            modalName.value = '';
+            modalHospital.value = '';
+            modalDueDate.value = '';
+            modalPriority.value = '中';
+            modalStatus.value = '未完成';
+            modalDesc.value = '';
             currentEditId = null;
         }
-        function saveReqFromModal() {
-            let rawJira = modalJiraKey.value.trim();
-            if (!rawJira) { showToast('请填写Jira编号或完整URL', true); return; }
-            let { key: jiraKey, base: extractedBase } = smartExtractJira(rawJira);
-            if (!jiraKey) { showToast('无法解析编号', true); return; }
-            if (extractedBase && extractedBase !== jiraBaseUrl) {
-                jiraBaseUrl = extractedBase;
-                localStorage.setItem('jiraBaseUrl', jiraBaseUrl);
-                showToast(`已自动设置Jira基础地址: ${extractedBase}`);
-            }
-            let name = modalName.value.trim();
-            if (!name) { showToast('请填写需求名称', true); return; }
-            let hospital = modalHospital.value.trim();
-            if (!hospital) { showToast('请填写项目医院', true); return; }
-            let description = modalDesc.value.trim() || '';
-            let dueDate = modalDueDate.value;
-            if (!dueDate) dueDate = new Date().toISOString().slice(0,10);
-            let priority = modalPriority.value;
-            let status = modalStatus.value;
-            const isUnique = (key, excludeId) => !requirements.some(r => r.jiraKey === key && r.id !== excludeId);
-            if (currentEditId !== null) {
-                let idx = requirements.findIndex(r => r.id === currentEditId);
-                if (idx !== -1) {
-                    if (requirements[idx].jiraKey !== jiraKey && !isUnique(jiraKey, currentEditId)) {
-                        showToast('Jira编号已存在', true); return;
-                    }
-                    requirements[idx] = { ...requirements[idx], jiraKey, name, hospital, description, dueDate, priority, status };
-                    saveToLocalStorage();
-                    closeReqModal();
-                    refreshView();
-                } else { closeReqModal(); }
-            } else {
-                if (!isUnique(jiraKey, null)) { showToast('Jira编号已存在', true); return; }
-                let newId = Date.now();
-                requirements.push({ id: newId, jiraKey, name, hospital, description, dueDate, priority, status });
-                saveToLocalStorage();
-                closeReqModal();
-                refreshView();
-            }
-            updateFilterOptions();
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => modalJiraKey.focus(), 50);
+    }
+    function closeReqModal() {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+        currentEditId = null;
+    }
+    async function saveReqFromModal() {
+        let rawJira = modalJiraKey.value.trim();
+        if (!rawJira) { showToast('请填写Jira编号或完整URL', true); return; }
+        let { key: jiraKey, base: extractedBase } = smartExtractJira(rawJira);
+        if (!jiraKey) { showToast('无法解析编号', true); return; }
+        if (extractedBase && extractedBase !== jiraBaseUrl) {
+            jiraBaseUrl = extractedBase;
+            localStorage.setItem('jiraBaseUrl', jiraBaseUrl);
+            showToast(`已自动设置Jira基础地址: ${extractedBase}`);
         }
+        let name = modalName.value.trim();
+        if (!name) { showToast('请填写需求名称', true); return; }
+        let hospital = modalHospital.value.trim();
+        if (!hospital) { showToast('请填写项目医院', true); return; }
+        let description = modalDesc.value.trim() || '';
+        let dueDate = modalDueDate.value;
+        if (!dueDate) dueDate = new Date().toISOString().slice(0,10);
+        let priority = modalPriority.value;
+        let status = modalStatus.value;
 
-        function openEditModal(id) {
-            let req = requirements.find(r => r.id === id);
-            if (req) openReqModal(true, req);
+        const isUnique = (key, excludeId) => !requirements.some(r => r.jira_key === key && r.id !== excludeId);
+        if (currentEditId !== null) {
+            let oldReq = requirements.find(r => r.id === currentEditId);
+            if (oldReq && oldReq.jira_key !== jiraKey && !isUnique(jiraKey, currentEditId)) {
+                showToast('Jira编号已存在', true); return;
+            }
+            const updated = { id: currentEditId, jira_key: jiraKey, name, hospital, description, due_date: dueDate, priority, status };
+            await upsertRequirement(updated, false);
+            closeReqModal();
+        } else {
+            if (!isUnique(jiraKey, null)) { showToast('Jira编号已存在', true); return; }
+            let newId = Date.now();
+            const newReq = { id: newId, jira_key: jiraKey, name, hospital, description, due_date: dueDate, priority, status, order_index: requirements.length };
+            await upsertRequirement(newReq, true);
+            closeReqModal();
         }
+        updateFilterOptions();
+    }
 
-        // 刷新表格视图（基于过滤排序后的数据）
-        function refreshView() {
-            let displayList = getDisplayList();
-            if (!displayList.length) {
-                tableBody.innerHTML = '<tr class="empty-row"><td colspan="10">暂无需求</td></tr>';
-                initSortable();
-                updateStats();
-                updateBatchDeleteButton();
-                selectAllChk.checked = false;
-                return;
-            }
-            let html = '';
-            for (let req of displayList) {
-                const statusClass = req.status === '已完成' ? 'status-done' : (req.status === '研发中' ? 'status-dev' : 'status-pending');
-                const statusText = req.status || '未完成';
-                html += `<tr data-id="${req.id}">
-                    <td class="checkbox-col"><input type="checkbox" class="row-checkbox" data-id="${req.id}"></td>
-                    <td class="drag-handle" style="cursor:grab; text-align:center;">⋮⋮</td>
-                    <td><span class="jira-link" data-jira-key="${escapeAttr(req.jiraKey)}">${escapeHtml(req.jiraKey)}</span></td>
-                    <td title="${escapeHtml(req.name)}">${escapeHtml(req.name)}</td>
-                    <td><span class="hospital-badge" title="${escapeHtml(req.hospital)}">${escapeHtml(req.hospital)}</span></td>
-                    <td title="${escapeHtml(req.description || '—')}">${escapeHtml(req.description || '—')}</td>
-                    <td>${escapeHtml(req.dueDate || '未设置')}</td>
-                    <td><span class="priority-badge priority-${req.priority === '高' ? 'high' : (req.priority === '中' ? 'medium' : 'low')}">${escapeHtml(req.priority)}</span></td>
-                    <td><span class="status-badge ${statusClass}">${escapeHtml(statusText)}</span></td>
-                    <td><button type="button" class="edit-icon" data-id="${req.id}">编辑</button> <button type="button" class="delete-icon" data-id="${req.id}">删除</button></td>
-                </tr>`;
-            }
-            tableBody.innerHTML = html;
-            document.querySelectorAll('.row-checkbox').forEach(cb => {
-                cb.removeEventListener('change', checkboxChangeHandler);
-                cb.addEventListener('change', checkboxChangeHandler);
-            });
+    function openEditModal(id) {
+        let req = requirements.find(r => r.id === id);
+        if (req) openReqModal(true, req);
+    }
+
+    // 渲染表格
+    function refreshView() {
+        let displayList = getDisplayList();
+        if (!displayList.length) {
+            tableBody.innerHTML = '<tr class="empty-row"><td colspan="10">暂无需求<\/tr>';
             initSortable();
             updateStats();
             updateBatchDeleteButton();
-            updateSelectAllCheckbox();
+            selectAllChk.checked = false;
+            return;
         }
-
-        function checkboxChangeHandler() {
-            updateBatchDeleteButton();
-            updateSelectAllCheckbox();
+        let html = '';
+        for (let req of displayList) {
+            const statusClass = req.status === '已完成' ? 'status-done' : (req.status === '研发中' ? 'status-dev' : 'status-pending');
+            const statusText = req.status || '未完成';
+            html += `<tr data-id="${req.id}">
+                <td class="checkbox-col"><input type="checkbox" class="row-checkbox" data-id="${req.id}"><\/td>
+                <td class="drag-handle" style="cursor:grab; text-align:center;">⋮⋮<\/td>
+                <td><span class="jira-link" data-jira-key="${escapeAttr(req.jira_key)}">${escapeHtml(req.jira_key)}<\/span><\/td>
+                <td title="${escapeHtml(req.name)}">${escapeHtml(req.name)}<\/td>
+                <td><span class="hospital-badge" title="${escapeHtml(req.hospital)}">${escapeHtml(req.hospital)}<\/span><\/td>
+                <td title="${escapeHtml(req.description || '—')}">${escapeHtml(req.description || '—')}<\/td>
+                <td>${escapeHtml(req.due_date || '未设置')}<\/td>
+                <td><span class="priority-badge priority-${req.priority === '高' ? 'high' : (req.priority === '中' ? 'medium' : 'low')}">${escapeHtml(req.priority)}<\/span><\/td>
+                <td><span class="status-badge ${statusClass}">${escapeHtml(statusText)}<\/span><\/td>
+                <td><button type="button" class="edit-icon" data-id="${req.id}">编辑<\/button> <button type="button" class="delete-icon" data-id="${req.id}">删除<\/button><\/td>
+            <\/tr>`;
         }
+        tableBody.innerHTML = html;
+        document.querySelectorAll('.row-checkbox').forEach(cb => {
+            cb.removeEventListener('change', checkboxChangeHandler);
+            cb.addEventListener('change', checkboxChangeHandler);
+        });
+        initSortable();
+        updateStats();
+        updateBatchDeleteButton();
+        updateSelectAllCheckbox();
+    }
 
-        // 全局委托
-        function globalClickHandler(e) {
-            const target = e.target;
-            if (target.classList.contains('jira-link')) {
-                e.stopPropagation();
-                openJira(target.getAttribute('data-jira-key'));
-            } else if (target.classList.contains('edit-icon')) {
-                let id = parseInt(target.getAttribute('data-id'));
-                openEditModal(id);
-            } else if (target.classList.contains('delete-icon')) {
-                let id = parseInt(target.getAttribute('data-id'));
-                deleteSingleRequirement(id);
-            }
+    function checkboxChangeHandler() {
+        updateBatchDeleteButton();
+        updateSelectAllCheckbox();
+    }
+
+    function globalClickHandler(e) {
+        const target = e.target;
+        if (target.classList.contains('jira-link')) {
+            e.stopPropagation();
+            openJira(target.getAttribute('data-jira-key'));
+        } else if (target.classList.contains('edit-icon')) {
+            let id = parseInt(target.getAttribute('data-id'));
+            openEditModal(id);
+        } else if (target.classList.contains('delete-icon')) {
+            let id = parseInt(target.getAttribute('data-id'));
+            deleteSingleRequirement(id);
         }
+    }
 
-        // 拖拽排序 (拖拽后清除排序状态)
-        function initSortable() {
-            if (sortableInstance) sortableInstance.destroy();
-            let tbody = document.getElementById('reqTableBody');
-            if (!tbody || !tbody.querySelector('tr:not(.empty-row)')) return;
-            sortableInstance = new Sortable(tbody, {
-                handle: '.drag-handle',
-                animation: 200,
-                onEnd: () => {
-                    // 拖拽后清除排序状态，保存新的顺序到 requirements
-                    let ids = [...tbody.querySelectorAll('tr')].map(tr => parseInt(tr.getAttribute('data-id'))).filter(id => !isNaN(id));
-                    let displayList = getDisplayList();
-                    if (ids.length !== displayList.length) return;
-                    let map = new Map(requirements.map(r => [r.id, r]));
-                    let newOrder = ids.map(id => map.get(id)).filter(r => r);
-                    // 需要将所有需求重新排序 (保持全局顺序)
-                    let newRequirements = [];
-                    for (let req of requirements) {
-                        if (newOrder.includes(req)) continue;
-                        newRequirements.push(req);
-                    }
-                    newRequirements = [...newOrder, ...newRequirements];
-                    requirements = newRequirements;
-                    sortField = null;   // 清除排序
-                    sortDirection = "asc";
-                    globalSearchInput.value = "";
-                    globalKeyword = "";
-                    saveToLocalStorage();
-                    refreshView();
-                }
-            });
-        }
-
-        // 排序处理
-        function handleSort(field) {
-            if (sortField === field) {
-                sortDirection = sortDirection === "asc" ? "desc" : "asc";
-            } else {
-                sortField = field;
+    function initSortable() {
+        if (sortableInstance) sortableInstance.destroy();
+        let tbody = document.getElementById('reqTableBody');
+        if (!tbody || !tbody.querySelector('tr:not(.empty-row)')) return;
+        sortableInstance = new Sortable(tbody, {
+            handle: '.drag-handle',
+            animation: 200,
+            onEnd: async () => {
+                let ids = [...tbody.querySelectorAll('tr')].map(tr => parseInt(tr.getAttribute('data-id'))).filter(id => !isNaN(id));
+                let displayList = getDisplayList();
+                if (ids.length !== displayList.length) return;
+                let map = new Map(requirements.map(r => [r.id, r]));
+                let newOrder = ids.map(id => map.get(id)).filter(r => r);
+                const orderMap = {};
+                newOrder.forEach((req, idx) => { orderMap[req.id] = idx; });
+                await updateOrderInCloud(orderMap);
+                sortField = null;
                 sortDirection = "asc";
+                globalSearchInput.value = "";
+                globalKeyword = "";
+                await loadFromCloud();
             }
-            refreshView();
-        }
+        });
+    }
 
-        // 导入Word
-        async function importWord(file) {
-            try {
-                let ab = await file.arrayBuffer();
-                let result = await mammoth.convertToHtml({ arrayBuffer: ab });
-                let parser = new DOMParser();
-                let doc = parser.parseFromString(result.value, 'text/html');
-                let tables = doc.querySelectorAll('table');
-                if (!tables.length) { showToast('未找到表格', true); return; }
-                let rows = tables[0].querySelectorAll('tr');
-                if (rows.length < 2) { showToast('表格无数据行', true); return; }
-                let header = rows[0].querySelectorAll('th, td');
-                let idx = { hospital: -1, name: -1, desc: -1 };
-                for (let i = 0; i < header.length; i++) {
-                    let txt = header[i].innerText.trim().toLowerCase();
-                    if (txt.includes('项目医院') || txt.includes('医院')) idx.hospital = i;
-                    else if (txt.includes('需求名称') || txt.includes('名称')) idx.name = i;
-                    else if (txt.includes('需求描述') || txt.includes('描述')) idx.desc = i;
-                }
-                if (idx.hospital === -1 || idx.name === -1) { showToast('表格需要“项目医院”和“需求名称”列', true); return; }
-                let today = new Date().toISOString().slice(0,10), newReqs = [];
-                for (let i = 1; i < rows.length; i++) {
-                    let cells = rows[i].querySelectorAll('th, td');
-                    if (cells.length === 0) continue;
-                    let get = (i) => i !== -1 && cells[i] ? cells[i].innerText.trim() : '';
-                    let hospital = get(idx.hospital), name = get(idx.name);
-                    if (!hospital || !name) continue;
-                    let desc = get(idx.desc);
-                    let jiraKey = `IMPORT-${Date.now()}-${i}`;
-                    while (requirements.some(r => r.jiraKey === jiraKey)) jiraKey = `IMPORT-${Date.now()}-${i}-${Math.random()}`;
-                    newReqs.push({ id: Date.now()+i, jiraKey, name, hospital, description: desc, dueDate: today, priority: '中', status: '未完成' });
-                }
-                if (!newReqs.length) { showToast('未解析到有效数据', true); return; }
-                requirements.push(...newReqs);
-                saveToLocalStorage();
-                refreshView();
-                showToast(`导入 ${newReqs.length} 条需求`);
-            } catch(e) { showToast('解析Word失败', true); console.error(e); }
+    function handleSort(field) {
+        if (sortField === field) {
+            sortDirection = sortDirection === "asc" ? "desc" : "asc";
+        } else {
+            sortField = field;
+            sortDirection = "asc";
         }
+        refreshView();
+    }
 
-        function loadFromStorage() {
-            let stored = localStorage.getItem('requirementsSystem');
-            if (stored) {
-                try {
-                    requirements = JSON.parse(stored);
-                    if (!Array.isArray(requirements)) requirements = [];
-                } catch(e) { requirements = []; }
+    async function importWord(file) {
+        try {
+            let ab = await file.arrayBuffer();
+            let result = await mammoth.convertToHtml({ arrayBuffer: ab });
+            let parser = new DOMParser();
+            let doc = parser.parseFromString(result.value, 'text/html');
+            let tables = doc.querySelectorAll('table');
+            if (!tables.length) { showToast('未找到表格', true); return; }
+            let rows = tables[0].querySelectorAll('tr');
+            if (rows.length < 2) { showToast('表格无数据行', true); return; }
+            let header = rows[0].querySelectorAll('th, td');
+            let idx = { hospital: -1, name: -1, desc: -1 };
+            for (let i = 0; i < header.length; i++) {
+                let txt = header[i].innerText.trim().toLowerCase();
+                if (txt.includes('项目医院') || txt.includes('医院')) idx.hospital = i;
+                else if (txt.includes('需求名称') || txt.includes('名称')) idx.name = i;
+                else if (txt.includes('需求描述') || txt.includes('描述')) idx.desc = i;
             }
-            if (!requirements.length) {
-                let today = new Date().toISOString().slice(0,10);
-                let nextWeek = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
-                requirements = [
-                    { id:1001, jiraKey:"HEALTH-101", name:"智慧门诊系统", hospital:"市第一人民医院", description:"升级智能分诊", dueDate:nextWeek, priority:"高", status:"研发中" },
-                    { id:1002, jiraKey:"HEALTH-102", name:"住院病历电子化", hospital:"仁爱医院", description:"无纸化病历", dueDate:today, priority:"中", status:"未完成" },
-                    { id:1003, jiraKey:"HEALTH-103", name:"药房库存预警", hospital:"中心医院", description:"低库存预警", dueDate:"2026-06-15", priority:"高", status:"已完成" }
-                ];
-                saveToLocalStorage();
+            if (idx.hospital === -1 || idx.name === -1) { showToast('表格需要“项目医院”和“需求名称”列', true); return; }
+            let today = new Date().toISOString().slice(0,10);
+            let newReqs = [];
+            for (let i = 1; i < rows.length; i++) {
+                let cells = rows[i].querySelectorAll('th, td');
+                if (cells.length === 0) continue;
+                let get = (i) => i !== -1 && cells[i] ? cells[i].innerText.trim() : '';
+                let hospital = get(idx.hospital), name = get(idx.name);
+                if (!hospital || !name) continue;
+                let desc = get(idx.desc);
+                let jiraKey = `IMPORT-${Date.now()}-${i}`;
+                while (requirements.some(r => r.jira_key === jiraKey)) jiraKey = `IMPORT-${Date.now()}-${i}-${Math.random()}`;
+                newReqs.push({ id: Date.now()+i, jira_key: jiraKey, name, hospital, description: desc, due_date: today, priority: '中', status: '未完成', order_index: requirements.length + i });
             }
-            let needFix = false;
-            for (let r of requirements) {
-                if (!r.jiraKey) { r.jiraKey = `MIG-${r.id}`; needFix=true; }
-                if (!r.hospital) { r.hospital="未指定医院"; needFix=true; }
-                if (!r.dueDate) { r.dueDate = new Date().toISOString().slice(0,10); needFix=true; }
-                if (!r.status) { r.status = "未完成"; needFix=true; }
+            if (!newReqs.length) { showToast('未解析到有效数据', true); return; }
+            for (let req of newReqs) {
+                await upsertRequirement(req, true);
             }
-            if (needFix) saveToLocalStorage();
-        }
+            await loadFromCloud();
+            showToast(`导入 ${newReqs.length} 条需求`);
+        } catch(e) { showToast('解析Word失败', true); console.error(e); }
+    }
 
-        function loadJiraUrl() {
-            let stored = localStorage.getItem('jiraBaseUrl');
-            if (stored) { jiraBaseUrl = stored; jiraBaseUrlInput.value = stored; }
-            else jiraBaseUrlInput.value = jiraBaseUrl;
-        }
-        function openJiraSettingsModal() {
-            jiraBaseUrlInput.value = jiraBaseUrl;
-            jiraSettingsModal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-        function closeJiraSettingsModal() {
-            jiraSettingsModal.classList.remove('active');
-            document.body.style.overflow = '';
-        }
-        function saveJiraUrl() {
-            let newUrl = jiraBaseUrlInput.value.trim();
-            if (newUrl && !newUrl.endsWith('/')) newUrl += '/';
-            if (newUrl) {
-                jiraBaseUrl = newUrl;
-                localStorage.setItem('jiraBaseUrl', jiraBaseUrl);
-                showToast('Jira基础地址已保存');
-                closeJiraSettingsModal();
-            } else showToast('无效地址', true);
-        }
+    function openJiraSettingsModal() {
+        jiraBaseUrlInput.value = jiraBaseUrl;
+        jiraSettingsModal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeJiraSettingsModal() {
+        jiraSettingsModal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    function saveJiraUrl() {
+        let newUrl = jiraBaseUrlInput.value.trim();
+        if (newUrl && !newUrl.endsWith('/')) newUrl += '/';
+        if (newUrl) {
+            jiraBaseUrl = newUrl;
+            localStorage.setItem('jiraBaseUrl', jiraBaseUrl);
+            showToast('Jira基础地址已保存');
+            closeJiraSettingsModal();
+        } else showToast('无效地址', true);
+    }
 
-        function bindEvents() {
-            openAddModalBtn.onclick = () => openReqModal(false);
-            batchDeleteBtn.onclick = batchDelete;
-            importWordBtn.onclick = () => wordFileInput.click();
-            wordFileInput.onchange = (e) => {
-                if (e.target.files?.[0] && e.target.files[0].name.endsWith('.docx')) importWord(e.target.files[0]);
-                else if(e.target.files?.[0]) showToast('仅支持.docx', true);
-                wordFileInput.value = '';
-            };
-            hospitalFilter.onchange = () => { currentFilterHospital = hospitalFilter.value; refreshView(); };
-            selectAllChk.onchange = (e) => {
-                let isChecked = e.target.checked;
-                document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = isChecked);
-                updateBatchDeleteButton();
-            };
-            globalSearchInput.oninput = (e) => { globalKeyword = e.target.value; refreshView(); };
-            // 表头排序
-            document.querySelectorAll('.req-table th[data-sort]').forEach(th => {
-                th.onclick = () => { handleSort(th.getAttribute('data-sort')); };
-            });
-            modalSaveBtn.onclick = saveReqFromModal;
-            modalCancelBtn.onclick = closeReqModal;
-            closeModalBtn.onclick = closeReqModal;
-            reqModal.onclick = (e) => { if (e.target === reqModal) closeReqModal(); };
-            openJiraSettingsBtn.onclick = openJiraSettingsModal;
-            saveJiraSettingsBtn.onclick = saveJiraUrl;
-            cancelJiraSettingsBtn.onclick = closeJiraSettingsModal;
-            closeJiraSettingsBtn.onclick = closeJiraSettingsModal;
-            jiraSettingsModal.onclick = (e) => { if (e.target === jiraSettingsModal) closeJiraSettingsModal(); };
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    if (reqModal.classList.contains('active')) closeReqModal();
-                    if (jiraSettingsModal.classList.contains('active')) closeJiraSettingsModal();
-                }
-            });
-        }
+    function bindEvents() {
+        openAddModalBtn.onclick = () => openReqModal(false);
+        batchDeleteBtn.onclick = batchDelete;
+        importWordBtn.onclick = () => wordFileInput.click();
+        wordFileInput.onchange = (e) => {
+            if (e.target.files?.[0] && e.target.files[0].name.endsWith('.docx')) importWord(e.target.files[0]);
+            else if(e.target.files?.[0]) showToast('仅支持.docx', true);
+            wordFileInput.value = '';
+        };
+        hospitalFilter.onchange = () => { currentFilterHospital = hospitalFilter.value; refreshView(); };
+        selectAllChk.onchange = (e) => {
+            let isChecked = e.target.checked;
+            document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = isChecked);
+            updateBatchDeleteButton();
+        };
+        globalSearchInput.oninput = (e) => { globalKeyword = e.target.value; refreshView(); };
+        document.querySelectorAll('.req-table th[data-sort]').forEach(th => {
+            th.onclick = () => { handleSort(th.getAttribute('data-sort')); };
+        });
+        modalSaveBtn.onclick = saveReqFromModal;
+        modalCancelBtn.onclick = closeReqModal;
+        closeModalBtn.onclick = closeReqModal;
+        modal.onclick = (e) => { if (e.target === modal) closeReqModal(); };
+        openJiraSettingsBtn.onclick = openJiraSettingsModal;
+        saveJiraSettingsBtn.onclick = saveJiraUrl;
+        cancelJiraSettingsBtn.onclick = closeJiraSettingsModal;
+        closeJiraSettingsBtn.onclick = closeJiraSettingsModal;
+        jiraSettingsModal.onclick = (e) => { if (e.target === jiraSettingsModal) closeJiraSettingsModal(); };
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (modal.classList.contains('active')) closeReqModal();
+                if (jiraSettingsModal.classList.contains('active')) closeJiraSettingsModal();
+            }
+        });
+    }
 
-        function escapeHtml(s) { if(!s) return ''; return s.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
-        function escapeAttr(s) { if(!s) return ''; return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function escapeHtml(s) { if(!s) return ''; return s.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+    function escapeAttr(s) { if(!s) return ''; return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-        function init() {
-            loadJiraUrl();
-            loadFromStorage();
-            updateFilterOptions();
-            refreshView();
-            bindEvents();
-            document.addEventListener('click', globalClickHandler);
-        }
-        init();
-    })();
+    async function init() {
+        bindEvents();
+        document.addEventListener('click', globalClickHandler);
+        await loadFromCloud();
+    }
+    init();
 </script>
 </body>
 </html>
