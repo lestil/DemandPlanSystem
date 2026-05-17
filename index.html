@@ -667,9 +667,16 @@ function refreshView() {
 
 // 批量删除 UI
 function updateBatchDeleteButton() {
-    const checked = document.querySelectorAll('.row-checkbox:checked').length;
-    batchDeleteBtn.style.display = checked > 0 ? 'inline-flex' : 'none';
-    batchDeleteBtn.innerText = `🗑️ 批量删除 (${checked})`;
+
+    const checked =
+        document.querySelectorAll('.row-checkbox:checked').length;
+
+    // 两条及以上才显示
+    batchDeleteBtn.style.display =
+        checked >= 2 ? 'inline-flex' : 'none';
+
+    batchDeleteBtn.innerText =
+        `🗑️ 批量删除 (${checked})`;
 }
 
 function getSelectedIds() {
@@ -871,9 +878,31 @@ document.getElementById('wordFileInput').onchange = (e) => {
 batchDeleteBtn.onclick = batchDelete;
 selectAllCheckbox.onchange = (e) => {
     const isChecked = e.target.checked;
-    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = isChecked);
+
+    document.querySelectorAll('.row-checkbox').forEach(cb => {
+        cb.checked = isChecked;
+    });
+
     updateBatchDeleteButton();
 };
+
+// 单个checkbox监听
+document.addEventListener('change', (e) => {
+
+    // 单行勾选
+    if (e.target.classList.contains('row-checkbox')) {
+
+        const all = document.querySelectorAll('.row-checkbox');
+        const checked = document.querySelectorAll('.row-checkbox:checked');
+
+        // 自动同步全选状态
+        selectAllCheckbox.checked =
+            all.length > 0 && all.length === checked.length;
+
+        updateBatchDeleteButton();
+    }
+
+});
 
 document.getElementById('openJiraSettingsBtn').onclick = openJiraSettingsModal;
 document.getElementById('closeJiraSettingsBtn').onclick = closeJiraSettingsModal;
